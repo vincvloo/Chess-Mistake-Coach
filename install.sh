@@ -3,21 +3,28 @@
 #
 #   bash install.sh
 #
-# Safe to run again: it skips whatever is already done, so running it later
-# simply starts the app. Options:
+# It also creates a "Chess Mistake Coach" launcher (an app on the Desktop on
+# macOS, a menu entry and desktop icon on Linux): open it to start the app,
+# and use the Stop button in the app to close it. No command line needed
+# after this.
+#
+# Safe to run again: it skips whatever is already done. Options:
 #   --no-launch        set everything up but don't start the app
+#   --no-shortcut      don't create the launcher
 #   --skip-stockfish   don't try to install Stockfish
 
 set -euo pipefail
 cd "$(dirname "$0")"
 
 LAUNCH=1
+SHORTCUT=1
 INSTALL_STOCKFISH=1
 for arg in "$@"; do
   case "$arg" in
     --no-launch) LAUNCH=0 ;;
+    --no-shortcut) SHORTCUT=0 ;;
     --skip-stockfish) INSTALL_STOCKFISH=0 ;;
-    -h|--help) sed -n '2,10p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,15p' "$0"; exit 0 ;;
     *) echo "Unknown option: $arg" >&2; exit 1 ;;
   esac
 done
@@ -85,11 +92,53 @@ if [ "$INSTALL_STOCKFISH" = 1 ]; then
   fi
 fi
 
-# 4. Start --------------------------------------------------------------------------
+# 4. Launcher -------------------------------------------------------------------------
+# Starts the app in the background (no terminal left open); the app opens its
+# own window and has a Stop button.
+HERE="$(pwd)"
+START_CMD="cd '$HERE' && nohup '$HERE/$VENV/bin/python' -m chess_mistake_coach serve >/dev/null 2>&1 &"
+ICON="$HERE/chess_mistake_coach/web/static/icon.png"
+
+if [ "$SHORTCUT" = 1 ]; then
+  if [ "$(uname)" = "Darwin" ]; then
+    if command -v osacompile >/dev/null 2>&1; then
+      APP="$HOME/Desktop/Chess Mistake Coach.app"
+      rm -rf "$APP"
+      osacompile -o "$APP" -e "do shell script \"$START_CMD\"" &&
+        say "Launcher created: open 'Chess Mistake Coach' on your Desktop" ||
+        warn "Couldn't create the Desktop launcher."
+    fi
+  else
+    APPS="$HOME/.local/share/applications"
+    mkdir -p "$APPS"
+    ENTRY="$APPS/chess-mistake-coach.desktop"
+    cat > "$ENTRY" <<EOF
+[Desktop Entry]
+Type=Application
+Name=Chess Mistake Coach
+Comment=Find the mistakes you keep making in chess and train them away
+Exec=sh -c "$START_CMD"
+Icon=$ICON
+Terminal=false
+Categories=Game;Education;
+EOF
+    chmod +x "$ENTRY"
+    DESKTOP_DIR="$(xdg-user-dir DESKTOP 2>/dev/null || echo "$HOME/Desktop")"
+    if [ -d "$DESKTOP_DIR" ]; then
+      cp "$ENTRY" "$DESKTOP_DIR/"
+      chmod +x "$DESKTOP_DIR/chess-mistake-coach.desktop"
+      command -v gio >/dev/null 2>&1 &&
+        gio set "$DESKTOP_DIR/chess-mistake-coach.desktop" metadata::trusted true 2>/dev/null || true
+    fi
+    say "Launcher created: 'Chess Mistake Coach' in your applications menu and on your desktop"
+  fi
+fi
+
+# 5. Start ------------------------------------------------------------------------------
 if [ "$LAUNCH" = 0 ]; then
-  say "Done. Start the app any time with: $VENV/bin/chess-mistake-coach serve"
+  say "Done. Start the app any time with the Chess Mistake Coach launcher."
   exit 0
 fi
 
-say "Starting the app (press Ctrl+C to stop it)"
-exec "$VENV/bin/chess-mistake-coach" serve
+say "Starting Chess Mistake Coach (it opens in its own window; use its Stop button to close it)"
+sh -c "$START_CMD"

@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Dashboard - Chess Mistake Coach</title>
+<link rel="icon" href="/favicon.ico">
 <style>
 :root {
   --bg: #f7f7f8; --panel: #ffffff; --border: #e2e2e6; --text: #1c1c1f;
@@ -31,6 +32,9 @@ h1 { font-size: 20px; margin: 0 0 2px; }
   font-size: 12.5px; font-weight: 600; border: 1px solid var(--border); background: var(--panel);
   color: var(--text); }
 .headerrow button:hover { border-color: var(--accent); color: var(--accent); }
+.headeractions { display: inline-flex; align-items: center; gap: 10px; }
+.headeractions .stopbtn { color: #c1507a; }
+.headeractions .stopbtn:hover { border-color: #c1507a; color: #c1507a; }
 .mainnav { display: flex; flex-wrap: wrap; gap: 4px 6px; margin: 10px 0 0; }
 .mainnav a { padding: 5px 11px; border-radius: 999px; font-size: 13px; color: var(--muted);
   text-decoration: none; border: 1px solid transparent; }
@@ -184,6 +188,7 @@ select { font: inherit; padding: 3px 6px; border-radius: 6px; border: 1px solid 
       <h1>Dashboard</h1>
       <div class="meta">Generated __GENERATED_AT__</div>
     </div>
+    <span class="headeractions">
     <form method="post" action="/jobs" id="updateForm" style="display:none">
       <input type="hidden" name="user" id="updateUser">
       <input type="hidden" name="email" id="updateEmail">
@@ -193,6 +198,9 @@ select { font: inherit; padding: 3px 6px; border-radius: 6px; border: 1px solid 
       <input type="hidden" name="min_loss" id="updateMinLoss">
       <button type="submit">Update</button>
     </form>
+    <button type="button" class="stopbtn" id="stopAppBtn" style="display:none"
+            title="Stop the app (start it again from its shortcut)">Stop</button>
+    </span>
   </div>
 </header>
 <div class="panel" id="demoBanner" style="display:none">
@@ -299,6 +307,45 @@ if (SERVED) {
     <div id="gaps"></div>
   </div>
 </div>
+<script>
+// The Stop button: shuts the app down (only offered on this computer itself).
+(function () {
+  var btn = document.getElementById("stopAppBtn");
+  if (!btn) return;
+  var local = ["127.0.0.1", "localhost", "[::1]", "::1"].indexOf(location.hostname) !== -1;
+  if (location.protocol.indexOf("http") !== 0 || !local) return;
+  btn.style.display = "";
+  function stoppedPage() {
+    document.title = "Stopped - Chess Mistake Coach";
+    document.body.innerHTML =
+      '<div style="max-width:460px;margin:12vh auto;padding:0 20px;text-align:center;font:15px/1.5 -apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif">' +
+      '<h1 style="font-size:20px;margin:0 0 8px">Chess Mistake Coach has stopped</h1>' +
+      '<p style="margin:0;opacity:.75">You can close this window. To start it again, use the ' +
+      'Chess Mistake Coach shortcut.</p></div>';
+    setTimeout(function () { window.close(); }, 600);
+  }
+  async function request(force) {
+    var r = await fetch("/api/shutdown", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ force: !!force }) });
+    return r.json();
+  }
+  btn.addEventListener("click", async function () {
+    if (!confirm("Stop Chess Mistake Coach?")) return;
+    try {
+      var res = await request(false);
+      if (res.busy) {
+        if (!confirm("An " + res.busy + " is running. Stopping pauses it; everything done so far is kept " +
+                     "and the next Update carries on. Stop anyway?")) return;
+        res = await request(true);
+      }
+      if (res.stopping) stoppedPage();
+      else if (res.error) alert(res.error);
+    } catch (e) {
+      stoppedPage();   // already gone
+    }
+  });
+})();
+</script>
 <a id="stickyProgress" href="/jobs/">
   <span id="stickyProgressLabel">Updating&hellip;</span>
   <span class="track"><span class="fill" id="stickyProgressFill"></span></span>

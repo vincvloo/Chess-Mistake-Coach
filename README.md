@@ -39,14 +39,24 @@ file and never leave it.
 
 ## Quick install
 
-One script does the whole setup (Python environment, the app, Stockfish) and then
-starts the app. Running it again later just starts the app.
+One script does the whole setup (Python environment, the app, Stockfish), creates a
+**Chess Mistake Coach** shortcut, and starts the app:
 
-- **Windows:** double-click `install.cmd`, or run `powershell -ExecutionPolicy Bypass -File install.ps1`
-- **macOS / Linux:** `bash install.sh`
+- **Windows:** double-click `install.cmd`, or run `powershell -ExecutionPolicy Bypass -File install.ps1`.
+  The shortcut goes on your desktop and in the Start menu.
+- **macOS / Linux:** `bash install.sh`. On macOS a Chess Mistake Coach app goes on your Desktop;
+  on Linux it's in your applications menu and on your desktop.
 
-It needs Python 3.10 or newer already installed. Add `-NoLaunch` (Windows) or
-`--no-launch` (macOS / Linux) to set things up without starting the app.
+It needs Python 3.10 or newer already installed. After that you never need the command line:
+
+- **To start:** double-click the shortcut. The app opens in its own window. If it's already
+  running, the shortcut just opens another window onto it.
+- **To stop:** click **Stop** at the top right of any page. If an update is running, it asks
+  first; everything analysed so far is kept and the next Update carries on.
+
+Running the installer again is safe, and it refreshes the shortcut. Add `-NoLaunch` /
+`--no-launch` to set things up without starting the app, or `-NoShortcut` / `--no-shortcut`
+to skip the shortcut.
 
 The first time you open the app it asks for your Chess.com username (the last part
 of your profile URL, `chess.com/member/YOUR_USERNAME`; not your Google email) and a
@@ -74,9 +84,11 @@ chess-mistake-coach serve
 ```
 
 This opens a browser window pointed at the app (in "app mode", with no address bar, if
-Chrome or Edge is found). Add `--no-browser` to just start the server and open the URL
-yourself, or `--port` if 8000 is taken. `--db` and `--engine` work as they do on the
-command line.
+Chrome or Edge is found). It uses port 8000, or the next free one; if the app is already
+running it just opens a window onto it. Add `--no-browser` to just start the server and
+open the URL yourself, or `--port` to choose the port. `--db` and `--engine` work as they
+do on the command line. When started from the shortcut there's no console, so messages
+go to `chess-mistake-coach.log` next to the database.
 
 The plain `pip install -e .` (without `[web]`) gives you only the command-line tool.
 </details>

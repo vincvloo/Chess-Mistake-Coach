@@ -52,6 +52,14 @@ def _hub_context(request: Request, error: str | None = None) -> dict:
     }
 
 
+STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+
+
+@router.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    return FileResponse(os.path.join(STATIC_DIR, "icon.ico"), media_type="image/x-icon")
+
+
 @router.get("/", response_class=HTMLResponse)
 def home(request: Request):
     conn = open_db(request.app.state.db_path)

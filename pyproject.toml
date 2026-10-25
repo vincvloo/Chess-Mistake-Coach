@@ -28,4 +28,4 @@ packages = ["chess_mistake_coach", "chess_mistake_coach.web"]
 
 [tool.setuptools.package-data]
 chess_mistake_coach = ["templates/*.html"]
-"chess_mistake_coach.web" = ["templates/*.html"]
+"chess_mistake_coach.web" = ["templates/*.html", "static/*"]

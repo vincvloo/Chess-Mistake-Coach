@@ -2,13 +2,18 @@
 #
 #   powershell -ExecutionPolicy Bypass -File install.ps1
 #
-# Safe to run again: it skips whatever is already done, so running it later
-# simply starts the app. Options:
+# It also puts a "Chess Mistake Coach" shortcut on your desktop and in the
+# Start menu: double-click it to start the app, and use the Stop button in
+# the app to close it. No command line needed after this.
+#
+# Safe to run again: it skips whatever is already done. Options:
 #   -NoLaunch        set everything up but don't start the app
+#   -NoShortcut      don't create the desktop / Start menu shortcuts
 #   -SkipStockfish   don't try to install Stockfish
 
 param(
     [switch]$NoLaunch,
+    [switch]$NoShortcut,
     [switch]$SkipStockfish
 )
 
@@ -80,11 +85,42 @@ if (-not $SkipStockfish) {
     }
 }
 
-# 4. Start ---------------------------------------------------------------------
+# 4. Shortcuts ------------------------------------------------------------------
+# pythonw runs the app with no console window; the app opens its own window.
+$pythonw = Join-Path $venv "Scripts\pythonw.exe"
+$icon = Join-Path $PSScriptRoot "chess_mistake_coach\web\static\icon.ico"
+
+function New-AppShortcut($folder) {
+    if (-not $folder -or -not (Test-Path $folder)) { return $null }
+    $path = Join-Path $folder "Chess Mistake Coach.lnk"
+    $link = (New-Object -ComObject WScript.Shell).CreateShortcut($path)
+    $link.TargetPath = $pythonw
+    $link.Arguments = "-m chess_mistake_coach serve"
+    $link.WorkingDirectory = $PSScriptRoot
+    $link.IconLocation = $icon
+    $link.Description = "Start Chess Mistake Coach"
+    $link.Save()
+    return $path
+}
+
+if (-not $NoShortcut) {
+    $made = @()
+    foreach ($folder in @([Environment]::GetFolderPath("Desktop"), [Environment]::GetFolderPath("Programs"))) {
+        try {
+            $p = New-AppShortcut $folder
+            if ($p) { $made += $p }
+        } catch {
+            Write-Host "Couldn't create a shortcut in $folder ($($_.Exception.Message))" -ForegroundColor Yellow
+        }
+    }
+    if ($made.Count) { Say "Shortcut created: double-click 'Chess Mistake Coach' on your desktop or in the Start menu" }
+}
+
+# 5. Start ----------------------------------------------------------------------
 if ($NoLaunch) {
-    Say "Done. Start the app any time with: .venvs\chess\Scripts\chess-mistake-coach serve"
+    Say "Done. Start the app any time with the Chess Mistake Coach shortcut."
     exit 0
 }
 
-Say "Starting the app (press Ctrl+C in this window to stop it)"
-& (Join-Path $venv "Scripts\chess-mistake-coach.exe") serve
+Say "Starting Chess Mistake Coach (it opens in its own window; use its Stop button to close it)"
+Start-Process -FilePath $pythonw -ArgumentList "-m", "chess_mistake_coach", "serve" -WorkingDirectory $PSScriptRoot
