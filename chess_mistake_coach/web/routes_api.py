@@ -3,7 +3,9 @@ play-mode (phase 5) moves, and puzzle-mode attempts."""
 
 from __future__ import annotations
 
+import ipaddress
 import os
+import threading
 from datetime import datetime, timezone
 
 import chess
@@ -64,6 +66,52 @@ def _judge_with_engine(engine_path: str | None, board_before: chess.Board,
 
     cp_loss = cp_before - cp_after
     return ("also_fine" if cp_loss < MISTAKE else "mistake"), cp_loss
+
+
+def _is_loopback(host: str | None) -> bool:
+    try:
+        return ipaddress.ip_address(host or "").is_loopback
+    except ValueError:
+        return host == "localhost"
+
+
+@router.get("/health")
+def health():
+    """Lets a second launch (e.g. double-clicking the shortcut again) see that
+    the app is already running and just open a window onto it."""
+    return {"app": "chess-mistake-coach"}
+
+
+@router.post("/shutdown")
+async def shutdown(request: Request):
+    """
+    The in-app Stop button. Only accepted from this computer itself (with
+    `serve --host 0.0.0.0` other devices on the network can't stop it). If an
+    update or puzzle import is running, answers {"busy": ...} first so the
+    page can ask; with {"force": true} it cancels that work (what's analysed
+    so far is kept) and stops.
+    """
+    if not _is_loopback(request.client.host if request.client else None):
+        return JSONResponse({"error": "the app can only be stopped from this computer"},
+                            status_code=403)
+    server = getattr(request.app.state, "server", None)
+    if server is None:
+        return JSONResponse({"error": "not running under the app's own server"}, status_code=503)
+    try:
+        body = await request.json()
+    except ValueError:
+        body = {}
+    jobs, imports = request.app.state.jobs, request.app.state.puzzle_import
+    job, imp = jobs.get_active_job_id(), imports.get_active_job_id()
+    if (job or imp) and not body.get("force"):
+        return {"stopping": False, "busy": "update" if job else "puzzle import"}
+    if job:
+        jobs.cancel(job)
+    if imp:
+        imports.cancel(imp)
+    # Answer first, then exit: the page needs this response to show "stopped".
+    threading.Timer(0.3, lambda: setattr(server, "should_exit", True)).start()
+    return {"stopping": True}
 
 
 @router.get("/jobs/active")
