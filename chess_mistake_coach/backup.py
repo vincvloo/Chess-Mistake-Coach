@@ -29,7 +29,7 @@ from .db import open_db
 USER_TABLES = (
     "games", "mistakes", "runs", "settings", "practice_attempts", "puzzle_attempts",
     "user_streaks", "user_puzzle_ratings", "user_game_ratings", "badges_earned",
-    "puzzle_rush_scores", "daily_puzzles",
+    "puzzle_rush_scores", "daily_puzzles", "game_clock_moves",
 )
 # position_evals (engine verdicts on opening positions) only exists once the
 # position cache is in; tables missing from a database are simply skipped.

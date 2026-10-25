@@ -24,7 +24,7 @@ import os
 import sys
 
 from . import gamification
-from .analysis import INACCURACY, PHASES, backfill_phase_moves
+from .analysis import INACCURACY, PHASES, backfill_clock_moves, backfill_phase_moves
 from .analysis_runner import DEFAULT_PARALLEL_THRESHOLD, DEFAULT_WORKERS, run_analysis
 from .chesscom import ChessComError
 from .db import open_db
@@ -191,10 +191,12 @@ def main() -> None:
             sys.exit(str(exc))
         for user in users:
             gamification.recompute_game_ratings(conn, user)
+            backfill_clock_moves(conn, user)
 
     if args.phase or args.export_html:
         for user in users:
             backfill_phase_moves(conn, user)
+            backfill_clock_moves(conn, user)
 
     if args.compare:
         if len(users) < 2:

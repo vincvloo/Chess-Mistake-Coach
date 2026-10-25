@@ -11,7 +11,9 @@ import sys
 import threading
 import webbrowser
 
+from ..analysis import backfill_clock_moves
 from ..cli import DEFAULT_DB
+from ..db import open_db
 from ..engine import find_engine
 from .browser import open_app_window
 
@@ -32,6 +34,22 @@ def build_serve_parser() -> argparse.ArgumentParser:
     return p
 
 
+def _backfill_clock_moves_once(db_path: str) -> None:
+    """Count moves per clock band for games analysed before the dashboard
+    could rate time pressure properly. A one-off per database (a few minutes
+    for tens of thousands of games, no engine), run in the background so the
+    app is usable meanwhile; the dashboard shows how far along it is. New
+    games store their counts when they're analysed."""
+    conn = open_db(db_path)
+    try:
+        for (user,) in conn.execute("SELECT DISTINCT username FROM games").fetchall():
+            backfill_clock_moves(conn, user)
+    except Exception:  # a background nicety: never take the app down with it
+        pass
+    finally:
+        conn.close()
+
+
 def serve_main(argv: list[str]) -> None:
     args = build_serve_parser().parse_args(argv)
 
@@ -44,6 +62,8 @@ def serve_main(argv: list[str]) -> None:
 
     engine_path = args.engine or find_engine()
     app = create_app(args.db, engine_path)
+    threading.Thread(target=_backfill_clock_moves_once, args=(args.db,),
+                     name="clock-backfill", daemon=True).start()
 
     url = f"http://{args.host}:{args.port}/"
 

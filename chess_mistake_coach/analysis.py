@@ -31,13 +31,25 @@ CP_LOSS_CAP = 5000
 
 PHASES = ("opening", "middlegame", "endgame")
 
+# Seconds left on your clock after a move, split into three bands. Upper bound
+# (exclusive) of each band except the last. reports.py re-exports these.
+CLOCK_BUCKET_EDGES = (30, 60)
+CLOCK_BUCKET_LABELS = ("under 30s left", "30 to 60s left", "over 60s left")
+
+
+def clock_bucket_index(clock_seconds: float) -> int:
+    for i, edge in enumerate(CLOCK_BUCKET_EDGES):
+        if clock_seconds < edge:
+            return i
+    return len(CLOCK_BUCKET_EDGES)
+
 PIECE_VALUE = {
     chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3,
     chess.ROOK: 5, chess.QUEEN: 9, chess.KING: 0,
 }
 
 
-class GameRecord(TypedDict):
+class _GameRecordRequired(TypedDict):
     url: str
     username: str
     end_time: int
@@ -52,6 +64,13 @@ class GameRecord(TypedDict):
     opening_moves: int
     middlegame_moves: int
     endgame_moves: int
+
+
+class GameRecord(_GameRecordRequired, total=False):
+    # How many of your clocked moves fell in each clock band, per phase:
+    # {"opening": [under 30s, 30-60s, over 60s], ...}. The denominator for
+    # the dashboard's time-pressure rates (see db.save_game).
+    clock_moves: dict[str, list[int]]
 
 
 class MistakeRecord(TypedDict):
@@ -221,6 +240,7 @@ def analyse_game(game_json: dict, user: str, engine: chess.engine.SimpleEngine,
         "opening_moves": 0,
         "middlegame_moves": 0,
         "endgame_moves": 0,
+        "clock_moves": _empty_clock_moves(),
     }
 
     mistakes: list[MistakeRecord] = []
@@ -230,6 +250,9 @@ def analyse_game(game_json: dict, user: str, engine: chess.engine.SimpleEngine,
         rec["moves_played"] += 1
         move_no = board.fullmove_number
         rec[f"{game_phase(board, move_no)}_moves"] += 1
+        clock = node.clock()
+        if clock is not None:
+            rec["clock_moves"][game_phase(board, move_no)][clock_bucket_index(clock)] += 1
 
         scored = score_move(board, played, me, engine, limit)
         if scored is None:
@@ -327,6 +350,77 @@ def count_phase_moves(game_json: dict, user: str) -> dict[str, int] | None:
     for board, played, node in _iter_own_moves(game, me):
         counts[f"{game_phase(board, board.fullmove_number)}_moves"] += 1
     return counts
+
+
+def _empty_clock_moves() -> dict[str, list[int]]:
+    return {phase: [0] * len(CLOCK_BUCKET_LABELS) for phase in PHASES}
+
+
+def count_clock_moves(game_json: dict, user: str) -> dict[str, list[int]] | None:
+    """Same per-phase, per-clock-band tally analyse_game() records, without
+    the engine. Uses the same clock reading as a stored mistake's
+    clock_seconds (the clock comment on your own move), so the time-pressure
+    rate's numerator and denominator count exactly the same kind of move."""
+    pgn_text = game_json.get("pgn")
+    if not pgn_text:
+        return None
+    game = chess.pgn.read_game(io.StringIO(pgn_text))
+    if game is None:
+        return None
+    resolved = resolve_colour(game_json, user)
+    if resolved is None:
+        return None
+    me, _, _ = resolved
+    counts = _empty_clock_moves()
+    for board, played, node in _iter_own_moves(game, me):
+        clock = node.clock()
+        if clock is not None:
+            counts[game_phase(board, board.fullmove_number)][clock_bucket_index(clock)] += 1
+    return counts
+
+
+def backfill_clock_moves(conn: sqlite3.Connection, user: str) -> int:
+    """Fill in game_clock_moves for games analysed before it existed, from
+    the PGNs already cached in `archives`: no network, no Stockfish (about
+    4 ms a game). Returns how many games were filled in."""
+    from .db import save_clock_moves
+    user = user.lower()
+    missing = {r["url"] for r in conn.execute("""
+        SELECT url FROM games g WHERE username = ? AND NOT EXISTS (
+            SELECT 1 FROM game_clock_moves c WHERE c.game_url = g.url AND c.username = g.username)
+    """, (user,))}
+    if not missing:
+        return 0
+    logger.info(f"[{user}] counting clock times for {len(missing)} earlier games "
+                f"(one-off, no engine needed)")
+
+    by_url: dict[str, dict] = {}
+    for row in conn.execute("SELECT body FROM archives WHERE username = ?", (user,)):
+        for g in json.loads(row["body"]):
+            if g.get("url") in missing:
+                by_url[g["url"]] = g
+
+    done = 0
+    batch = []
+    for url in missing:
+        g_json = by_url.get(url)
+        counts = count_clock_moves(g_json, user) if g_json else None
+        if counts is None:
+            continue
+        batch.append((url, counts))
+        if len(batch) >= 500:
+            with conn:
+                for u, c in batch:
+                    save_clock_moves(conn, u, user, c)
+            done += len(batch)
+            batch.clear()
+    with conn:
+        for u, c in batch:
+            save_clock_moves(conn, u, user, c)
+    done += len(batch)
+    if done:
+        logger.info(f"[{user}] counted moves per clock band for {done} games")
+    return done
 
 
 def backfill_phase_moves(conn: sqlite3.Connection, user: str) -> None:

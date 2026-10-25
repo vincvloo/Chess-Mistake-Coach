@@ -254,11 +254,12 @@ def job_progress_page(request: Request, job_id: str):
 @router.get("/dashboard", response_class=HTMLResponse)
 def dashboard(request: Request, users: str = ""):
     user_list = [u.strip() for u in users.split(",") if u.strip()]
-    if not user_list:
-        return HTMLResponse("<p>No users selected.</p>", status_code=400)
-
     conn = open_db(request.app.state.db_path)
     try:
+        if not user_list and get_settings(conn)["primary_user"]:
+            user_list = [get_settings(conn)["primary_user"]]
+        if not user_list:
+            return HTMLResponse("<p>No users selected.</p>", status_code=400)
         result = render_dashboard_html(conn, user_list)
     finally:
         conn.close()

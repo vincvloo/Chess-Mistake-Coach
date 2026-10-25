@@ -525,7 +525,7 @@ def test_dashboard_route_returns_html_for_known_user(tmp_path):
     client = TestClient(create_app(_seeded_db(tmp_path)))
     r = client.get("/dashboard", params={"users": "alice"})
     assert r.status_code == 200
-    assert "Chess Mistake Explorer" in r.text
+    assert "<h1>Dashboard</h1>" in r.text
     assert "alice" in r.text
 
 
