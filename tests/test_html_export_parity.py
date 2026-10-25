@@ -69,6 +69,9 @@ def _seeded_db():
              "D00", 22, 8, 8, 6),
     ]
     for g in games:
+        # Every game has its clock bands counted, as a freshly analysed game
+        # does -- the dashboard only rates time pressure over counted games.
+        g["clock_moves"] = {"opening": [1, 1, 4], "middlegame": [2, 2, 4], "endgame": [3, 1, 1]}
         save_game(conn, g, [], depth=14)
 
     mistakes = [

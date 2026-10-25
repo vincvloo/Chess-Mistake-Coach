@@ -46,6 +46,23 @@ CATEGORY_EXPLANATIONS = {
         "placement.",
 }
 
+# Lichess puzzle themes that train each mistake type ("any of"). A type with
+# no entry has no fitting puzzles: planning isn't something tactics puzzles
+# teach. Every theme here exists in the imported puzzle set.
+CATEGORY_PUZZLE_THEMES = {
+    "allowed forced mate": ["defensiveMove"],
+    "missed forced mate": ["mate"],
+    "moved a piece onto an attacked square": ["hangingPiece"],
+    "left a piece undefended": ["hangingPiece"],
+    "hung a pawn": ["hangingPiece"],
+    "underdefended piece, lost the exchange": ["capturingDefender", "hangingPiece"],
+    "allowed a strong check or fork": ["fork"],
+    "missed a capture winning material": ["hangingPiece"],
+    "missed a favourable capture": ["hangingPiece"],
+    "missed a forcing check": ["exposedKing"],
+    "missed a tactic setting up material gain": ["fork", "pin", "skewer", "discoveredAttack"],
+}
+
 RATING_LABELS = {
     "best": "Best move",
     "good": "Good move",

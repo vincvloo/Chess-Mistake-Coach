@@ -3,37 +3,42 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Chess Mistake Explorer</title>
+<title>Dashboard - Chess Mistake Coach</title>
 <style>
 :root {
   --bg: #f7f7f8; --panel: #ffffff; --border: #e2e2e6; --text: #1c1c1f;
-  --muted: #6b6b74; --accent: #3f6fd6; --accent-soft: #e8edfb;
-  --max-cell: #fde2e2; --track: #ececf0;
+  --muted: #6b6b74; --accent: #3f6fd6; --accent-soft: #e8edfb; --on-accent: #ffffff;
+  --max-cell: #fde2e2; --track: #ececf0; --better: #2f8f5b; --worse: #c1507a;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #17181c; --panel: #1f2024; --border: #313238; --text: #ececef;
-    --muted: #9a9aa2; --accent: #7da2ff; --accent-soft: #263252;
-    --max-cell: #4a2a2c; --track: #2a2b30;
+    --muted: #9a9aa2; --accent: #7da2ff; --accent-soft: #263252; --on-accent: #0e1526;
+    --max-cell: #4a2a2c; --track: #2a2b30; --better: #5cc48a; --worse: #e08aa8;
   }
 }
 * { box-sizing: border-box; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 body { margin: 0; background: var(--bg); color: var(--text);
   font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
-header { padding: 20px 24px 8px; }
+header { padding: 20px 24px 4px; max-width: 1040px; margin: 0 auto; }
 h1 { font-size: 20px; margin: 0 0 2px; }
+.brand { font-size: 12.5px; color: var(--muted); text-decoration: none; }
 .meta { color: var(--muted); font-size: 12.5px; }
-.backnav { margin-bottom: 8px; font-size: 12.5px; }
-.backnav a { color: var(--muted); text-decoration: none; }
-.backnav a:hover { color: var(--accent); }
 .headerrow { display: flex; justify-content: space-between; align-items: flex-start;
-  gap: 12px; flex-wrap: wrap; }
-.headerrow button, .headerrow .btn-secondary { font: inherit; padding: 7px 14px;
-  border-radius: 7px; cursor: pointer; font-size: 12.5px; font-weight: 600;
-  border: 1px solid var(--border); background: var(--panel); color: var(--text); }
+  gap: 12px; flex-wrap: wrap; margin-top: 10px; }
+.headerrow button { font: inherit; padding: 7px 14px; border-radius: 7px; cursor: pointer;
+  font-size: 12.5px; font-weight: 600; border: 1px solid var(--border); background: var(--panel);
+  color: var(--text); }
 .headerrow button:hover { border-color: var(--accent); color: var(--accent); }
+.mainnav { display: flex; flex-wrap: wrap; gap: 4px 6px; margin: 10px 0 0; }
+.mainnav a { padding: 5px 11px; border-radius: 999px; font-size: 13px; color: var(--muted);
+  text-decoration: none; border: 1px solid transparent; }
+.mainnav a:hover { color: var(--accent); border-color: var(--border); }
+.mainnav a[aria-current="page"] { color: var(--text); background: var(--panel);
+  border-color: var(--border); font-weight: 600; }
 #demoBanner { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  background: var(--accent-soft); margin: 0 24px 16px; font-size: 12.5px; }
+  background: var(--accent-soft); max-width: 992px; margin: 8px auto 0; font-size: 12.5px; }
 #demoBanner a { color: var(--accent); text-decoration: none; }
 #demoBannerStatus { color: var(--muted); }
 #stickyProgress { position: fixed; left: 0; right: 0; bottom: 0; background: var(--panel);
@@ -45,47 +50,102 @@ h1 { font-size: 20px; margin: 0 0 2px; }
 #stickyProgress .fill { display: block; background: var(--accent); height: 100%; width: 0%;
   transition: width .3s; }
 #stickyProgress .pct { color: var(--muted); min-width: 3em; text-align: right; }
-.app { display: grid; grid-template-columns: 260px 1fr; gap: 20px; padding: 16px 24px 40px; align-items: start; }
-@media (max-width: 800px) { .app { grid-template-columns: 1fr; } }
+.app { max-width: 1040px; margin: 0 auto; padding: 12px 24px 72px; display: flex;
+  flex-direction: column; gap: 16px; }
 .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
-.filters { display: flex; flex-direction: column; gap: 12px; position: sticky; top: 16px; }
-@media (max-width: 800px) { .filters { position: static; } }
-.group summary { cursor: pointer; font-weight: 600; font-size: 13px; padding: 2px 0; }
-.group { margin-bottom: 4px; }
-.groupbar { display: flex; justify-content: space-between; align-items: center; }
-.grouplinks { display: flex; gap: 8px; }
-.grouplinks button { background: none; border: none; color: var(--accent); cursor: pointer;
-  font-size: 11.5px; padding: 0; }
-.chklist { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; max-height: 240px; overflow-y: auto; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 760px) { .pair { grid-template-columns: 1fr; } }
+h2 { font-size: 15px; margin: 0 0 8px; }
+h3 { font-size: 12.5px; margin: 14px 0 6px; color: var(--muted); font-weight: 600; }
+h3:first-child { margin-top: 0; }
+.note, .emptynote { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.callout { font-size: 13px; margin-top: 10px; padding: 8px 10px; border-radius: 8px;
+  background: var(--accent-soft); }
+
+/* ---- filter bar: one row of dropdown chips ---- */
+.filterbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.filterbar .flabel { font-size: 12px; color: var(--muted); margin-right: 2px; }
+details.fchip { position: relative; }
+details.fchip > summary { list-style: none; cursor: pointer; padding: 5px 12px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--panel); font-size: 12.5px; white-space: nowrap; }
+details.fchip > summary::-webkit-details-marker { display: none; }
+details.fchip > summary::after { content: " \25BE"; color: var(--muted); }
+details.fchip > summary .fval { color: var(--muted); }
+details.fchip.narrowed > summary { border-color: var(--accent); }
+details.fchip.narrowed > summary .fval { color: var(--accent); font-weight: 600; }
+details.fchip[open] > summary { border-color: var(--accent); }
+.fpanel { position: absolute; z-index: 10; top: calc(100% + 6px); left: 0; min-width: 230px;
+  max-width: min(340px, 90vw); background: var(--panel); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+.grouplinks { display: flex; gap: 10px; }
+.grouplinks button, .linkbtn { background: none; border: none; color: var(--accent); cursor: pointer;
+  font: inherit; font-size: 12px; padding: 0; }
+.chklist { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; max-height: 260px; overflow-y: auto; }
 label.chk { display: flex; align-items: center; gap: 7px; font-size: 12.5px; cursor: pointer; }
 label.chk input { accent-color: var(--accent); }
-.content { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-#summary { color: var(--muted); font-size: 12.5px; margin-bottom: 8px; }
-.barrow { display: grid; grid-template-columns: 130px 1fr 52px; gap: 10px; align-items: center; margin: 6px 0; }
-.barlabel { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---- at a glance ---- */
+.glance { display: grid; grid-template-columns: 200px 1fr; gap: 18px; }
+@media (max-width: 640px) { .glance { grid-template-columns: 1fr; } }
+.glance + .glance { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+.bignum { font-size: 38px; font-weight: 700; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.biglabel { font-size: 12px; color: var(--muted); }
+.trendline { font-size: 13px; margin-top: 10px; font-variant-numeric: tabular-nums; }
+.better { color: var(--better); } .worse { color: var(--worse); } .flat { color: var(--muted); }
+.problems { list-style: none; margin: 0; padding: 0; }
+.problems li { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: baseline;
+  padding: 7px 0; border-bottom: 1px solid var(--border); }
+.problems li:last-child { border-bottom: none; }
+.problems .rank { color: var(--muted); font-weight: 700; }
+.problems .why { font-size: 12px; color: var(--muted); }
+.facts { font-size: 12.5px; color: var(--muted); margin: 10px 0 0; padding-left: 18px; }
+.facts li { margin: 2px 0; }
+.facts b { color: var(--text); font-weight: 600; }
+@media (max-width: 560px) {
+  header { padding: 14px 12px 4px; }
+  .app { padding: 10px 10px 72px; }
+  .panel { padding: 14px 12px; }
+  .problems li { grid-template-columns: 22px 1fr; }
+  .problems li > .train, .problems li > span:last-child:empty { grid-column: 2; }
+}
+
+/* ---- bars ---- */
+.barrow { display: grid; grid-template-columns: minmax(110px, 230px) 1fr 52px auto; gap: 10px;
+  align-items: center; margin: 5px 0; }
+.barrow.compact { grid-template-columns: minmax(80px, 150px) 1fr 52px auto; }
+.barlabel { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.barlabel small { color: var(--muted); }
 .bartrack { background: var(--track); border-radius: 5px; height: 10px; overflow: hidden; }
 .barfill { background: var(--accent); height: 100%; border-radius: 5px; transition: width .15s; }
 .barvalue { font-size: 12.5px; text-align: right; font-variant-numeric: tabular-nums; }
+.baraside { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.train { display: inline-flex; gap: 10px; }
+.train a { color: var(--accent); text-decoration: none; font-size: 12px; white-space: nowrap; }
+.train a:hover { text-decoration: underline; }
+.barhead { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em;
+  margin: 12px 0 2px; }
+.barhead:first-child { margin-top: 0; }
+@media (max-width: 560px) {
+  .barrow, .barrow.compact { grid-template-columns: 1fr 52px; }
+  .barrow .bartrack { grid-column: 1 / -1; grid-row: 2; }
+  .barrow .baraside { grid-column: 1 / -1; }
+}
+
+/* ---- tables (several players) ---- */
 .tablewrap { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
 th, td { padding: 6px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--border); }
 th:first-child, td:first-child { text-align: left; position: sticky; left: 0; background: var(--panel); }
-thead th { color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); }
+thead th { color: var(--muted); font-weight: 600; }
 tr.total-row td { font-weight: 700; border-bottom: 2px solid var(--border); }
 td.maxcell { background: var(--max-cell); border-radius: 4px; }
-.refrow { display: flex; align-items: center; gap: 8px; font-size: 12.5px; margin-bottom: 6px; }
-select { font: inherit; padding: 3px 6px; border-radius: 6px; border: 1px solid var(--border);
-  background: var(--panel); color: var(--text); }
-#gaps ul { margin: 6px 0 0; padding-left: 18px; }
-#gaps li { margin: 3px 0; }
-h2 { font-size: 14px; margin: 0 0 4px; }
-h3 { font-size: 12.5px; margin: 14px 0 4px; color: var(--muted); }
-h3:first-child { margin-top: 0; }
+
+/* ---- trend ---- */
 .trendhead { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
 .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
 .seg button { background: var(--panel); color: var(--text); border: none; padding: 4px 12px;
   font: inherit; font-size: 12.5px; cursor: pointer; }
-.seg button.active { background: var(--accent); color: #fff; }
+.seg button.active { background: var(--accent); color: var(--on-accent); }
 .seg button + button { border-left: 1px solid var(--border); }
 .trendwrap { overflow-x: auto; }
 .legend { display: flex; flex-wrap: wrap; gap: 12px; margin: 6px 0 10px; font-size: 12px; color: var(--muted); }
@@ -97,27 +157,32 @@ h3:first-child { margin-top: 0; }
 svg.trend text { fill: var(--muted); font-size: 10.5px; }
 svg.trend .gridline { stroke: var(--border); stroke-width: 1; }
 svg.trend .empty { fill: var(--muted); font-size: 12.5px; }
-.deltarow { display: grid; grid-template-columns: 90px 12px 90px 60px 1fr; gap: 6px;
+.deltarow { display: grid; grid-template-columns: 50px 12px 50px 54px 1fr; gap: 6px;
   align-items: center; font-size: 12.5px; margin: 3px 0; font-variant-numeric: tabular-nums; }
-.deltaworse { color: #c1507a; } .deltabetter { color: #3fa66f; } .deltaflat { color: var(--muted); }
-.note { font-size: 12px; color: var(--muted); margin-top: 4px; }
-.emptynote { font-size: 12.5px; color: var(--muted); }
-.subhead { font-size: 11.5px; color: var(--muted); text-transform: uppercase;
-  letter-spacing: .03em; margin: 10px 0 2px; }
-.subhead:first-child { margin-top: 0; }
-.openrow { display: grid; grid-template-columns: 110px 1fr 70px; gap: 8px; align-items: center;
-  font-size: 12.5px; margin: 3px 0; }
-td.practicecell a { color: var(--accent); text-decoration: none; font-size: 12px; }
-td.practicecell a:hover { text-decoration: underline; }
+.deltaworse { color: var(--worse); } .deltabetter { color: var(--better); } .deltaflat { color: var(--muted); }
+.refrow { display: flex; align-items: center; gap: 8px; font-size: 12.5px; margin-bottom: 6px; }
+select { font: inherit; padding: 3px 6px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--panel); color: var(--text); }
+#gaps ul { margin: 6px 0 0; padding-left: 18px; }
+#gaps li { margin: 3px 0; }
 </style>
 </head>
 <body>
 <header>
-  <div class="backnav" id="homeNav" style="display:none"><a href="/">&larr; Home</a></div>
+  <nav class="mainnav" id="mainNav" aria-label="Main" style="display:none">
+    <a href="/">Home</a>
+    <a href="/dashboard" aria-current="page">Dashboard</a>
+    <a href="/practice">Practice</a>
+    <a href="/puzzles">Puzzles</a>
+    <a href="/play">Play</a>
+    <a href="/achievements">Achievements</a>
+    <a href="/leaderboard">Leaderboard</a>
+  </nav>
   <div class="headerrow">
     <div>
-      <h1>Chess Mistake Explorer</h1>
-      <div class="meta">Generated __GENERATED_AT__ &middot; filter by player, game phase, time class, severity and mistake type</div>
+      <a class="brand" href="/" id="brandLink">Chess Mistake Coach</a>
+      <h1>Dashboard</h1>
+      <div class="meta">Generated __GENERATED_AT__</div>
     </div>
     <form method="post" action="/jobs" id="updateForm" style="display:none">
       <input type="hidden" name="user" id="updateUser">
@@ -126,7 +191,7 @@ td.practicecell a:hover { text-decoration: underline; }
       <input type="hidden" name="threads" id="updateThreads">
       <input type="hidden" name="pause" id="updatePause">
       <input type="hidden" name="min_loss" id="updateMinLoss">
-      <button type="submit" class="btn-secondary">Update</button>
+      <button type="submit">Update</button>
     </form>
   </div>
 </header>
@@ -136,91 +201,103 @@ td.practicecell a:hover { text-decoration: underline; }
   <a href="/" id="demoBannerSkip">Skip to my dashboard</a>
 </div>
 <script>
-// Only show a "Home" link when this page is actually being served by the
-// app (this same HTML is also a fully standalone --export-html file opened
-// with no server at all, where a link to "/" would be dead).
-if (location.protocol.indexOf("http") === 0) {
-  document.getElementById("homeNav").style.display = "";
+// The nav and links back into the app only make sense when this page is
+// served by the app -- the same HTML is also a standalone --export-html file
+// opened with no server at all, where "/" would be a dead link.
+const SERVED = location.protocol.indexOf("http") === 0;
+if (SERVED) {
+  document.getElementById("mainNav").style.display = "";
+} else {
+  document.getElementById("brandLink").removeAttribute("href");
 }
 </script>
 <div class="app">
-  <aside class="filters">
-    <div class="panel group" id="grp-users">
-      <div class="groupbar"><summary style="cursor:default">Players</summary>
-        <div class="grouplinks"><button data-act="all">all</button><button data-act="none">none</button></div></div>
-      <div class="chklist" id="chk-users"></div>
-    </div>
-    <div class="panel group" id="grp-phases">
-      <div class="groupbar"><summary style="cursor:default">Phase</summary>
-        <div class="grouplinks"><button data-act="all">all</button><button data-act="none">none</button></div></div>
-      <div class="chklist" id="chk-phases"></div>
-    </div>
-    <div class="panel group" id="grp-tc">
-      <div class="groupbar"><summary style="cursor:default">Time class</summary>
-        <div class="grouplinks"><button data-act="all">all</button><button data-act="none">none</button></div></div>
-      <div class="chklist" id="chk-tc"></div>
-    </div>
-    <div class="panel group" id="grp-severities">
-      <div class="groupbar"><summary style="cursor:default">Severity</summary>
-        <div class="grouplinks"><button data-act="all">all</button><button data-act="none">none</button></div></div>
-      <div class="chklist" id="chk-severities"></div>
-    </div>
-    <div class="panel group" id="grp-cats">
-      <div class="groupbar"><summary style="cursor:default">Mistake type</summary>
-        <div class="grouplinks"><button data-act="all">all</button><button data-act="none">none</button></div></div>
-      <div class="chklist" id="chk-cats"></div>
-    </div>
-  </aside>
-  <main class="content">
-    <div class="panel">
-      <h2>Error rate (per 100 moves, selected filters)</h2>
-      <div id="summary"></div>
-      <div id="bars"></div>
-    </div>
-    <div class="panel">
-      <div class="trendhead">
-        <h2 style="margin:0">Evolution over time</h2>
-        <div class="seg" id="granularity">
-          <button data-g="month" class="active">Month</button>
-          <button data-g="quarter">3 Months</button>
-          <button data-g="half">6 Months</button>
-          <button data-g="year">Year</button>
-        </div>
+  <div class="filterbar" id="filterbar" aria-label="Filters">
+    <span class="flabel">Showing</span>
+    <details class="fchip" id="grp-users">
+      <summary>Players: <span class="fval" id="val-users"></span></summary>
+      <div class="fpanel"><div class="grouplinks"><button data-act="all">all</button><button data-act="none">none</button></div>
+        <div class="chklist" id="chk-users"></div></div>
+    </details>
+    <details class="fchip" id="grp-phases">
+      <summary>Phase: <span class="fval" id="val-phases"></span></summary>
+      <div class="fpanel"><div class="grouplinks"><button data-act="all">all</button><button data-act="none">none</button></div>
+        <div class="chklist" id="chk-phases"></div></div>
+    </details>
+    <details class="fchip" id="grp-tc">
+      <summary>Time control: <span class="fval" id="val-tc"></span></summary>
+      <div class="fpanel"><div class="grouplinks"><button data-act="all">all</button><button data-act="none">none</button></div>
+        <div class="chklist" id="chk-tc"></div></div>
+    </details>
+    <details class="fchip" id="grp-severities">
+      <summary>Severity: <span class="fval" id="val-severities"></span></summary>
+      <div class="fpanel"><div class="grouplinks"><button data-act="all">all</button><button data-act="none">none</button></div>
+        <div class="chklist" id="chk-severities"></div></div>
+    </details>
+    <details class="fchip" id="grp-cats">
+      <summary>Mistake type: <span class="fval" id="val-cats"></span></summary>
+      <div class="fpanel"><div class="grouplinks"><button data-act="all">all</button><button data-act="none">none</button></div>
+        <div class="chklist" id="chk-cats"></div></div>
+    </details>
+    <button type="button" class="linkbtn" id="resetFilters" style="display:none">Reset filters</button>
+  </div>
+
+  <div class="panel">
+    <h2>At a glance</h2>
+    <div id="glance"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Your mistakes by type</h2>
+    <div class="note" style="margin:-4px 0 8px">Errors per 100 of your moves, worst first.</div>
+    <div id="typeList"></div>
+  </div>
+
+  <div class="panel">
+    <div class="trendhead">
+      <h2 style="margin:0">Over time</h2>
+      <div class="seg" id="granularity">
+        <button data-g="month" class="active">Month</button>
+        <button data-g="quarter">3 Months</button>
+        <button data-g="half">6 Months</button>
+        <button data-g="year">Year</button>
       </div>
-      <div class="legend" id="trendLegend"></div>
-      <div class="trendwrap"><svg id="trendChart" class="trend"></svg></div>
-      <div class="warn-note" id="trendWarnNote"></div>
-      <div id="halfDeltas"></div>
+    </div>
+    <div class="legend" id="trendLegend"></div>
+    <div class="trendwrap"><svg id="trendChart" class="trend"></svg></div>
+    <div class="warn-note" id="trendWarnNote"></div>
+    <div id="halfDeltas"></div>
+  </div>
+
+  <div class="pair">
+    <div class="panel">
+      <h2>By game phase</h2>
+      <div id="phaseBars"></div>
     </div>
     <div class="panel">
-      <h2>By mistake type</h2>
-      <div class="tablewrap"><table id="table"></table></div>
-    </div>
-    <div class="panel">
-      <h2>By phase (errors per 100 moves)</h2>
-      <div class="tablewrap"><table id="moveTable"></table></div>
-    </div>
-    <div class="panel">
-      <h2>Time pressure (errors per 100 moves)</h2>
-      <div class="tablewrap"><table id="clockTable"></table></div>
+      <h2>Under time pressure</h2>
+      <div id="clockBars"></div>
       <div id="clockNotes"></div>
     </div>
-    <div class="panel">
-      <h2>By colour and time control</h2>
-      <div id="colourTc"></div>
+  </div>
+
+  <div class="panel">
+    <h2>By colour and time control</h2>
+    <div id="colourTc"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Openings you play often</h2>
+    <div id="openings"></div>
+  </div>
+
+  <div class="panel" id="gapsPanel">
+    <h2>Biggest gaps</h2>
+    <div class="refrow">reference player
+      <select id="refSelect"></select>
     </div>
-    <div class="panel">
-      <h2>Openings you play often</h2>
-      <div id="openings"></div>
-    </div>
-    <div class="panel" id="gapsPanel">
-      <h2>Biggest gaps</h2>
-      <div class="refrow">reference player
-        <select id="refSelect"></select>
-      </div>
-      <div id="gaps"></div>
-    </div>
-  </main>
+    <div id="gaps"></div>
+  </div>
 </div>
 <a id="stickyProgress" href="/jobs/">
   <span id="stickyProgressLabel">Updating&hellip;</span>
@@ -326,6 +403,10 @@ function colorFor(user) {
   return PALETTE[idx % PALETTE.length];
 }
 
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
 // "2026-09-11T19:57:02+00:00" -> "2d ago". Used only for display -- filter
 // membership, colours and URLs always key off the raw username.
 function relativeTime(iso) {
@@ -347,39 +428,112 @@ function userLabel(u) {
   return ago ? u + " (updated " + ago + ")" : u;
 }
 
-function buildGroup(containerId, items, selectedSet, labelFor) {
-  const el = document.getElementById(containerId);
+// ---- filter chips ------------------------------------------------------------
+const GROUPS = [
+  { id: "grp-users", chk: "chk-users", val: "val-users", items: () => DATA.lists.users, set: () => state.users, label: userLabel },
+  { id: "grp-phases", chk: "chk-phases", val: "val-phases", items: () => DATA.lists.phases, set: () => state.phases },
+  { id: "grp-tc", chk: "chk-tc", val: "val-tc", items: () => DATA.lists.timeClasses, set: () => state.timeClasses },
+  { id: "grp-severities", chk: "chk-severities", val: "val-severities", items: () => DATA.lists.severities, set: () => state.severities },
+  { id: "grp-cats", chk: "chk-cats", val: "val-cats", items: () => DATA.lists.categories, set: () => state.categories },
+];
+
+function buildGroup(g) {
+  const el = document.getElementById(g.chk);
   el.innerHTML = "";
-  items.forEach(item => {
+  const set = g.set();
+  g.items().forEach(item => {
     const label = document.createElement("label");
     label.className = "chk";
     const input = document.createElement("input");
     input.type = "checkbox";
-    input.checked = selectedSet.has(item);
+    input.checked = set.has(item);
     input.addEventListener("change", () => {
-      if (input.checked) selectedSet.add(item); else selectedSet.delete(item);
+      if (input.checked) set.add(item); else set.delete(item);
       render();
     });
     const span = document.createElement("span");
-    span.textContent = labelFor ? labelFor(item) : item;
+    span.textContent = g.label ? g.label(item) : item;
     label.appendChild(input);
     label.appendChild(span);
     el.appendChild(label);
   });
 }
 
-function wireGroupLinks(groupId, containerId, items, selectedSet) {
-  const grp = document.getElementById(groupId);
+function wireGroup(g) {
+  const grp = document.getElementById(g.id);
   grp.querySelectorAll("button[data-act]").forEach(btn => {
     btn.addEventListener("click", () => {
-      selectedSet.clear();
-      if (btn.dataset.act === "all") items.forEach(i => selectedSet.add(i));
-      buildGroup(containerId, items, selectedSet);
+      const set = g.set();
+      set.clear();
+      if (btn.dataset.act === "all") g.items().forEach(i => set.add(i));
+      buildGroup(g);
       render();
     });
   });
+  // One open dropdown at a time, kept inside the screen.
+  grp.addEventListener("toggle", () => {
+    if (!grp.open) return;
+    GROUPS.forEach(o => { if (o.id !== g.id) document.getElementById(o.id).open = false; });
+    const panel = grp.querySelector(".fpanel");
+    panel.style.left = "0px";
+    const overflow = panel.getBoundingClientRect().right - (document.documentElement.clientWidth - 8);
+    if (overflow > 0) panel.style.left = -overflow + "px";
+  });
 }
 
+function isDefault(g) {
+  const set = g.set();
+  if (g.id === "grp-severities") {
+    const d = DATA.meta.defaultSeverities;
+    return set.size === d.length && d.every(s => set.has(s));
+  }
+  return set.size === g.items().length;
+}
+
+function chipValue(g) {
+  const set = g.set(), all = g.items();
+  if (set.size === all.length) return "all";
+  if (set.size === 0) return "none";
+  if (set.size <= 2) return all.filter(i => set.has(i)).join(", ");
+  return set.size + " of " + all.length;
+}
+
+function updateChips() {
+  let narrowed = false;
+  GROUPS.forEach(g => {
+    document.getElementById(g.val).textContent = chipValue(g);
+    const def = isDefault(g);
+    document.getElementById(g.id).classList.toggle("narrowed", !def);
+    if (!def) narrowed = true;
+  });
+  document.getElementById("resetFilters").style.display = narrowed ? "" : "none";
+  // Only one player tracked: nothing to choose, so don't offer the chip.
+  document.getElementById("grp-users").style.display = DATA.lists.users.length > 1 ? "" : "none";
+}
+
+document.getElementById("resetFilters").addEventListener("click", () => {
+  state.users = new Set(DATA.lists.users);
+  state.phases = new Set(DATA.lists.phases);
+  state.timeClasses = new Set(DATA.lists.timeClasses);
+  state.severities = new Set(DATA.meta.defaultSeverities);
+  state.categories = new Set(DATA.lists.categories);
+  GROUPS.forEach(buildGroup);
+  render();
+});
+
+document.addEventListener("click", e => {
+  if (e.target.closest("details.fchip")) return;
+  GROUPS.forEach(g => { document.getElementById(g.id).open = false; });
+});
+document.addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  GROUPS.forEach(g => {
+    const d = document.getElementById(g.id);
+    if (d.open) { d.open = false; d.querySelector("summary").focus(); }
+  });
+});
+
+// ---- selections and rates ------------------------------------------------------
 function baseSel() {
   return {
     user: indicesOf(DATA.lists.users, state.users),
@@ -413,6 +567,196 @@ function totalRate(sel, user) {
   return sumFacts(DATA.countFacts, uSel) / m * 100;
 }
 
+function severityWords() {
+  const s = DATA.lists.severities.filter(x => state.severities.has(x));
+  if (!s.length) return "errors";
+  if (s.length === DATA.lists.severities.length) return "errors of any size";
+  return s.map(x => x + "s").join(" + ");
+}
+
+// Practice your own positions of this type; puzzles on the matching theme(s).
+// Only meaningful inside the app, and pointed at one player.
+function trainingLinks(user, category) {
+  if (!SERVED || !user || DATA.meta.demo) return "";
+  const links = ['<a href="/practice?users=' + encodeURIComponent(user) + "&category=" +
+    encodeURIComponent(category) + '">Practice these</a>'];
+  const themes = (DATA.meta.trainingThemes || {})[category];
+  if (themes && themes.length) {
+    links.push('<a href="/puzzles?users=' + encodeURIComponent(user) + "&" +
+      themes.map(t => "themes=" + encodeURIComponent(t)).join("&") + '">Puzzles on this</a>');
+  }
+  return '<span class="train">' + links.join("") + "</span>";
+}
+
+// ---- generic bars ----------------------------------------------------------------
+// rows: [{label, value (or null), aside (html), color}]. One scale per call.
+function barRowsHtml(rows, compact) {
+  const max = Math.max(1e-9, ...rows.map(r => r.value || 0));
+  return rows.map(r => {
+    const w = r.value == null ? 0 : r.value / max * 100;
+    return '<div class="barrow' + (compact ? " compact" : "") + '">' +
+      '<div class="barlabel" title="' + esc(r.title || r.label) + '">' + (r.labelHtml || esc(r.label)) + "</div>" +
+      '<div class="bartrack"><div class="barfill" style="width:' + w + "%" +
+      (r.color ? ";background:" + r.color : "") + '"></div></div>' +
+      '<div class="barvalue">' + (r.value == null ? "&ndash;" : r.value.toFixed(1)) + "</div>" +
+      '<div class="baraside">' + (r.aside || "") + "</div></div>";
+  }).join("");
+}
+
+// Same rows for every selected player: one bar each, grouped by row when
+// there are several players, coloured per player.
+function renderGroupedBars(elId, rowLabels, users, getValue, emptyText) {
+  const el = document.getElementById(elId);
+  let html = "";
+  if (users.length === 1) {
+    const rows = rowLabels.map((label, ri) => ({ label, value: getValue(users[0], ri) }))
+      .filter(r => r.value != null);
+    html = barRowsHtml(rows, true);
+  } else {
+    const all = rowLabels.map((label, ri) => users.map(u => ({ u, v: getValue(u, ri) })));
+    const max = Math.max(1e-9, ...all.flat().map(x => x.v || 0));
+    rowLabels.forEach((label, ri) => {
+      const vals = all[ri].filter(x => x.v != null);
+      if (!vals.length) return;
+      html += '<div class="barhead">' + esc(label) + "</div>";
+      html += vals.map(x => {
+        const w = x.v / max * 100;
+        return '<div class="barrow compact"><div class="barlabel">' + esc(x.u) + '</div>' +
+          '<div class="bartrack"><div class="barfill" style="width:' + w + "%;background:" + colorFor(x.u) +
+          '"></div></div><div class="barvalue">' + x.v.toFixed(1) + '</div><div class="baraside"></div></div>';
+      }).join("");
+    });
+  }
+  el.innerHTML = html || '<div class="emptynote">' + (emptyText || "No data for the current filters.") + "</div>";
+}
+
+// ---- at a glance -------------------------------------------------------------------
+// Recent direction: the last k months you played vs the k before them
+// (k up to 3), comparing months that have games, not calendar months.
+function recentDirection(sel, user) {
+  const uSel = userSel(sel, user);
+  const months = DATA.lists.months;
+  const moves = groupFacts(DATA.movesFacts, uSel, "month", months);
+  const counts = groupFacts(DATA.countFacts, uSel, "month", months);
+  const played = months.map((m, i) => i).filter(i => moves[i] > 0);
+  const k = Math.min(3, Math.floor(played.length / 2));
+  if (k < 1) return null;
+  const recent = played.slice(-k), before = played.slice(-2 * k, -k);
+  const rate = idxs => {
+    const mv = idxs.reduce((s, i) => s + moves[i], 0);
+    return mv ? idxs.reduce((s, i) => s + counts[i], 0) / mv * 100 : null;
+  };
+  const a = rate(before), b = rate(recent);
+  if (a == null || b == null) return null;
+  const span = idxs => months[idxs[0]] + (idxs.length > 1 ? " to " + months[idxs[idxs.length - 1]] : "");
+  return { before: a, recent: b, k, beforeLabel: span(before), recentLabel: span(recent) };
+}
+
+function phaseRates(sel, user) {
+  const uSel = userSel(sel, user);
+  return DATA.lists.phases.map((p, pi) => {
+    if (!uSel.phase.has(pi)) return null;
+    const ps = withOverride(uSel, { phase: new Set([pi]) });
+    const m = movesFor(ps);
+    return m ? sumFacts(DATA.countFacts, ps) / m * 100 : null;
+  });
+}
+
+function clockRates(sel, user) {
+  const uSel = userSel(sel, user);
+  const errs = groupFacts(DATA.clockBucketFacts, uSel, "clockBucket", DATA.lists.clockBuckets);
+  const moves = groupFacts(DATA.clockMovesFacts, uSel, "clockBucket", DATA.lists.clockBuckets);
+  return DATA.lists.clockBuckets.map((b, i) => moves[i] ? { rate: errs[i] / moves[i] * 100, moves: moves[i] } : null);
+}
+
+function renderGlance(sel, users, cats) {
+  const el = document.getElementById("glance");
+  if (!users.length) { el.innerHTML = '<div class="emptynote">Pick at least one player.</div>'; return; }
+  el.innerHTML = users.map(user => {
+    const total = totalRate(sel, user);
+    const moves = movesFor(userSel(sel, user));
+    let left = '<div><div class="bignum">' + (total == null ? "&ndash;" : total.toFixed(1)) + "</div>" +
+      '<div class="biglabel">' + esc(severityWords()) + " per 100 moves" +
+      (users.length > 1 ? " &middot; <b>" + esc(user) + "</b>" : "") + "</div>" +
+      '<div class="biglabel">' + moves.toLocaleString() + " moves analysed</div>";
+    const dir = recentDirection(sel, user);
+    if (dir) {
+      const d = dir.recent - dir.before;
+      const cls = d < -DATA.meta.deltaEpsilon ? "better" : d > DATA.meta.deltaEpsilon ? "worse" : "flat";
+      const word = cls === "better" ? "Improving" : cls === "worse" ? "Getting worse" : "Steady";
+      left += '<div class="trendline"><b class="' + cls + '">' + word + "</b>: " +
+        dir.before.toFixed(1) + " &rarr; " + dir.recent.toFixed(1) +
+        '<div class="biglabel">' + esc(dir.recentLabel) + " vs " + esc(dir.beforeLabel) + "</div></div>";
+    }
+    left += "</div>";
+
+    const errors = sumFacts(DATA.countFacts, userSel(sel, user));
+    const top = cats.map(c => ({ c, n: countFor(sel, user, c) }))
+      .filter(x => x.n > 0).sort((a, b) => b.n - a.n).slice(0, 3);
+    let right = "<div>";
+    if (top.length) {
+      right += '<h3>Your biggest problems</h3><ol class="problems">' + top.map((x, i) =>
+        '<li><span class="rank">' + (i + 1) + "</span><span>" + esc(x.c) +
+        '<div class="why">' + (moves ? (x.n / moves * 100).toFixed(1) + " per 100 moves &middot; " : "") +
+        Math.round(x.n / errors * 100) + "% of your errors</div></span>" +
+        (users.length === 1 ? trainingLinks(user, x.c) : "<span></span>") + "</li>").join("") + "</ol>";
+    } else {
+      right += '<div class="emptynote">No errors under the current filters.</div>';
+    }
+
+    const facts = [];
+    const pr = phaseRates(sel, user);
+    const withPhase = DATA.lists.phases.map((p, i) => ({ p, r: pr[i] })).filter(x => x.r != null);
+    if (withPhase.length > 1) {
+      const worst = withPhase.reduce((a, b) => (b.r > a.r ? b : a));
+      facts.push("Most errors in the <b>" + esc(worst.p) + "</b> (" + worst.r.toFixed(1) + " per 100 moves).");
+    }
+    const cr = clockRates(sel, user);
+    if (cr[0] && cr[2] && cr[0].moves >= 50 && cr[2].moves >= 50) {
+      const ratio = cr[0].rate / cr[2].rate;
+      if (ratio >= 1.15) {
+        facts.push("Under 30 seconds you make <b>" + ratio.toFixed(1) + "&times;</b> as many errors per move as with more than a minute left.");
+      } else if (ratio <= 0.87) {
+        facts.push("You actually play <b>more accurately</b> under 30 seconds than with more than a minute left.");
+      }
+    }
+    if (facts.length) right += '<ul class="facts">' + facts.map(f => "<li>" + f + "</li>").join("") + "</ul>";
+    right += "</div>";
+    return '<div class="glance">' + left + right + "</div>";
+  }).join("");
+}
+
+// ---- mistake types ------------------------------------------------------------------
+function renderTypes(sel, users, cats, totals) {
+  const el = document.getElementById("typeList");
+  if (!users.length || !cats.length) { el.innerHTML = '<div class="emptynote">No data for the current filters.</div>'; return; }
+  if (users.length === 1) {
+    const u = users[0];
+    const errors = sumFacts(DATA.countFacts, userSel(sel, u));
+    const rows = cats.map(c => ({ c, v: rateOf(sel, u, c), n: countFor(sel, u, c) }))
+      .filter(r => r.n > 0).sort((a, b) => b.v - a.v)
+      .map(r => ({ label: r.c, value: r.v,
+        aside: Math.round(r.n / errors * 100) + "% &nbsp;" + trainingLinks(u, r.c) }));
+    el.innerHTML = rows.length ? barRowsHtml(rows) : '<div class="emptynote">No errors under the current filters.</div>';
+    return;
+  }
+  // Several players: a table, worst first by whoever is highest.
+  const rateRows = cats.map(c => ({ c, vals: users.map(u => rateOf(sel, u, c)) }));
+  rateRows.sort((a, b) => Math.max(...b.vals.map(v => v ?? 0)) - Math.max(...a.vals.map(v => v ?? 0)));
+  let html = '<div class="tablewrap"><table><thead><tr><th>mistake type</th>' +
+    users.map(u => "<th>" + esc(userLabel(u)) + "</th>").join("") + "</tr></thead><tbody>";
+  html += '<tr class="total-row"><td>ALL ERRORS</td>' +
+    totals.map(t => "<td>" + (t.r == null ? "&ndash;" : t.r.toFixed(2)) + "</td>").join("") + "</tr>";
+  rateRows.forEach(r => {
+    const numeric = r.vals.filter(v => v != null);
+    const maxV = numeric.length ? Math.max(...numeric) : null;
+    html += "<tr><td>" + esc(r.c) + "</td>" + r.vals.map(v =>
+      '<td class="' + (v != null && v === maxV ? "maxcell" : "") + '">' + (v == null ? "&ndash;" : v.toFixed(2)) + "</td>").join("") + "</tr>";
+  });
+  el.innerHTML = html + "</tbody></table></div>";
+}
+
+// ---- over time (unchanged chart) -------------------------------------------------------
 function quarterKey(m) {
   const [y, mo] = m.split("-").map(Number);
   return y + "-Q" + Math.ceil(mo / 3);
@@ -546,13 +890,13 @@ function renderTrend(sel, users, bkts) {
     });
   });
 
-  document.getElementById("trendLegend").innerHTML = users.map(u =>
-    '<span class="item"><span class="swatch" style="background:' + colorFor(u) + '"></span>' + userLabel(u) + '</span>'
-  ).join("");
+  document.getElementById("trendLegend").innerHTML = users.length > 1 ? users.map(u =>
+    '<span class="item"><span class="swatch" style="background:' + colorFor(u) + '"></span>' + esc(userLabel(u)) + "</span>"
+  ).join("") : "";
 
   document.getElementById("trendWarnNote").innerHTML = anyThin
     ? '<span class="ring"></span>hollow points mark periods with fewer than ' +
-      DATA.meta.thinGamesThreshold + ' games for that player — treat those readings as noisy.'
+      DATA.meta.thinGamesThreshold + " games for that player — treat those readings as noisy."
     : "";
 }
 
@@ -604,7 +948,7 @@ function renderLatestDeltas(sel, users, bkts) {
     const result = latestDeltasFor(sel, user, bkts);
     if (!result || !result.rows.length) return;
     const h3 = document.createElement("h3");
-    h3.textContent = userLabel(user) + " — " + result.label;
+    h3.textContent = "Biggest changes, " + result.label + (users.length > 1 ? " (" + user + ")" : "");
     el.appendChild(h3);
     result.rows.forEach(({ d, a, b, cat }) => {
       const row = document.createElement("div");
@@ -613,112 +957,68 @@ function renderLatestDeltas(sel, users, bkts) {
                 : d < -DATA.meta.deltaEpsilon ? "deltabetter" : "deltaflat";
       const arrow = d > DATA.meta.deltaEpsilon ? "worse" : d < -DATA.meta.deltaEpsilon ? "better" : "flat";
       row.innerHTML =
-        '<span>' + a.toFixed(2) + '</span><span>&rarr;</span><span>' + b.toFixed(2) + '</span>' +
-        '<span class="' + cls + '">' + arrow + '</span><span>' + cat + '</span>';
+        "<span>" + a.toFixed(2) + "</span><span>&rarr;</span><span>" + b.toFixed(2) + "</span>" +
+        '<span class="' + cls + '">' + arrow + "</span><span>" + esc(cat) + "</span>";
       el.appendChild(row);
     });
   });
 }
 
-function renderMetricTable(elId, rowLabels, users, getValue) {
-  const table = document.getElementById(elId);
-  if (!users.length || !rowLabels.length) { table.innerHTML = ""; return; }
-  let thead = "<thead><tr><th></th>" + users.map(u => "<th>" + userLabel(u) + "</th>").join("") + "</tr></thead>";
-  let tbody = "<tbody>";
-  rowLabels.forEach((label, ri) => {
-    const vals = users.map(u => getValue(u, ri));
-    if (vals.every(v => v === 0)) return;
-    tbody += "<tr><td>" + label + "</td>" +
-      vals.map(v => "<td>" + v.toFixed(1) + "</td>").join("") + "</tr>";
-  });
-  tbody += "</tbody>";
-  table.innerHTML = thead + tbody;
+// ---- phase, clock, colour and time control ----------------------------------------------
+function renderPhase(sel, users) {
+  const rates = Object.fromEntries(users.map(u => [u, phaseRates(sel, u)]));
+  renderGroupedBars("phaseBars", DATA.lists.phases, users, (u, ri) => rates[u][ri]);
 }
 
-function renderPhaseTable(sel, users) {
-  renderMetricTable("moveTable", DATA.lists.phases, users, (user, ri) => {
-    const uSel = userSel(sel, user);
-    const phaseSel = withOverride(uSel, { phase: new Set([ri]) });
-    const moves = movesFor(phaseSel);
-    if (!moves) return 0;
-    const errors = sumFacts(DATA.countFacts, phaseSel);
-    return errors / moves * 100;
-  });
-}
-
-function renderClockTable(sel, users) {
-  const el = document.getElementById("clockNotes");
-  el.innerHTML = "";
-  const perUser = users.map(user => {
-    const uSel = userSel(sel, user);
-    const arr = groupFacts(DATA.clockBucketFacts, uSel, "clockBucket", DATA.lists.clockBuckets);
-    const total = arr.reduce((a, b) => a + b, 0);
-    const moves = movesFor(uSel);
-    return { user, arr, total, moves };
-  });
-  renderMetricTable("clockTable", DATA.lists.clockBuckets, users, (user, ri) => {
-    const u = perUser.find(p => p.user === user);
-    return u.moves ? u.arr[ri] / u.moves * 100 : 0;
-  });
-  perUser.forEach(({ user, arr, total }) => {
-    if (!total) return;
-    // The "low clock" alert is a proportion of clocked errors, unrelated to
-    // the per-100-games scaling used for display above.
-    const underFirst = arr[0] / total;
-    if (underFirst > DATA.meta.timePressureAlert) {
-      const p = document.createElement("div");
-      p.className = "note";
-      p.textContent = user + ": most damage happens on a low clock — a time " +
-        "management problem, not a chess knowledge problem.";
-      el.appendChild(p);
+function renderClock(sel, users) {
+  const rates = Object.fromEntries(users.map(u => [u, clockRates(sel, u)]));
+  renderGroupedBars("clockBars", DATA.lists.clockBuckets, users,
+    (u, ri) => rates[u][ri] ? rates[u][ri].rate : null,
+    "No clock times for these games (daily games and some older games have none).");
+  const notes = [];
+  users.forEach(u => {
+    const cov = (DATA.meta.clockCoverage || {})[u];
+    if (cov && cov.counted < cov.total) {
+      notes.push(esc(u) + ": clock times counted for " + cov.counted.toLocaleString() + " of " +
+        cov.total.toLocaleString() + " games so far" + (SERVED ? " (this finishes in the background; reload in a few minutes)." : "."));
     }
   });
+  document.getElementById("clockNotes").innerHTML =
+    '<div class="note">Errors per 100 moves you made with that much time left on your clock.</div>' +
+    notes.map(n => '<div class="note">' + n + "</div>").join("");
 }
 
 function renderColourTc(sel, users) {
   const el = document.getElementById("colourTc");
-  el.innerHTML = "";
-  users.forEach(user => {
-    const uSel = userSel(sel, user);
-    const h3 = document.createElement("h3");
-    h3.textContent = userLabel(user);
-    el.appendChild(h3);
-
-    const colourHead = document.createElement("div");
-    colourHead.className = "subhead";
-    colourHead.textContent = "By colour (errors per 100 moves)";
-    el.appendChild(colourHead);
-    DATA.lists.colours.forEach((colour, ci) => {
-      const colSel = withOverride(uSel, { colour: new Set([ci]) });
-      const mv = sumFacts(DATA.colourMovesFacts, colSel);
-      const e = sumFacts(DATA.colourCountFacts, colSel);
-      if (!mv) return;
-      const row = document.createElement("div");
-      row.className = "barrow";
-      row.innerHTML = '<div class="barlabel">' + colour + '</div><div></div>' +
-        '<div class="barvalue">' + (e / mv * 100).toFixed(2) + '</div>';
-      el.appendChild(row);
-    });
-
-    const tcHead = document.createElement("div");
-    tcHead.className = "subhead";
-    tcHead.textContent = "By time control (errors per 100 moves)";
-    el.appendChild(tcHead);
-    DATA.lists.timeClasses.forEach((tc, tci) => {
-      if (!uSel.tc.has(tci)) return;
-      const tcSel = withOverride(uSel, { tc: new Set([tci]) });
-      const mv = movesFor(tcSel);
-      const e = sumFacts(DATA.countFacts, tcSel);
-      if (!mv) return;
-      const row = document.createElement("div");
-      row.className = "barrow";
-      row.innerHTML = '<div class="barlabel">' + tc + '</div><div></div>' +
-        '<div class="barvalue">' + (e / mv * 100).toFixed(2) + '</div>';
-      el.appendChild(row);
-    });
+  const colourRows = users.flatMap(u => {
+    const uSel = userSel(sel, u);
+    return DATA.lists.colours.map((colour, ci) => {
+      const cs = withOverride(uSel, { colour: new Set([ci]) });
+      const mv = sumFacts(DATA.colourMovesFacts, cs);
+      return mv ? { label: colour + (users.length > 1 ? " · " + u : ""), value: sumFacts(DATA.colourCountFacts, cs) / mv * 100,
+        color: users.length > 1 ? colorFor(u) : null } : null;
+    }).filter(Boolean);
   });
+  const tcRows = users.flatMap(u => {
+    const uSel = userSel(sel, u);
+    return DATA.lists.timeClasses.map((tc, tci) => {
+      if (!uSel.tc.has(tci)) return null;
+      const ts = withOverride(uSel, { tc: new Set([tci]) });
+      const mv = movesFor(ts);
+      return mv ? { label: tc + (users.length > 1 ? " · " + u : ""), value: sumFacts(DATA.countFacts, ts) / mv * 100,
+        aside: games(ts).toLocaleString() + " games", color: users.length > 1 ? colorFor(u) : null } : null;
+    }).filter(Boolean);
+  });
+  el.innerHTML = (colourRows.length ? '<div class="pair"><div><div class="barhead">By colour</div>' +
+    barRowsHtml(colourRows, true) + '</div><div><div class="barhead">By time control</div>' +
+    barRowsHtml(tcRows, true) + "</div></div>" : '<div class="emptynote">No data for the current filters.</div>');
 }
 
+function games(sel) {
+  return sumFacts(DATA.gamesFacts, sel, 0);
+}
+
+// ---- openings --------------------------------------------------------------------------
 // Best-effort ECO -> opening name lookup, exact codes only (no guessed
 // ranges) and limited to openings we're confident are correctly named.
 // Anything not in here just shows the bare code -- a missing name is much
@@ -729,7 +1029,7 @@ const ECO_NAMES = {
   B00: "King's Pawn Opening", B01: "Scandinavian Defense",
   B02: "Alekhine's Defense", B06: "Modern Defense", B07: "Pirc Defense",
   B10: "Caro-Kann Defense", B20: "Sicilian Defense", B27: "Sicilian Defense",
-  C00: "French Defense", C20: "King's Pawn Game", C23: "Bishop's Opening",
+  C00: "French Defense", C20: "King's Pawn Game", C21: "Center Game", C23: "Bishop's Opening",
   C25: "Vienna Game", C30: "King's Gambit", C40: "King's Knight Opening",
   C41: "Philidor Defense", C42: "Petrov's Defense", C44: "King's Pawn Game",
   C45: "Scotch Game", C50: "Italian Game", C60: "Ruy Lopez",
@@ -740,178 +1040,109 @@ const ECO_NAMES = {
   E60: "King's Indian Defense",
 };
 
+// Errors per 100 moves in each opening you've played at least
+// ecoMinGames times (with that colour), phase filter applied on both sides.
 function openingsFor(sel, user) {
   const uSel = userSel(sel, user);
-  // ecoGamesFacts has no phase/severity/category dims, so this denominator
-  // is games in scope, not phase-filtered -- reproducing the terminal
-  // report's existing asymmetry with the (phase-filtered) numerator below.
-  // colour is grouped alongside eco (not just filtered) because an ECO code
-  // alone doesn't say which side it was played from.
-  const gDims = DATA.ecoGamesFacts.dims;
-  const gEco = gDims.indexOf("eco"), gCol = gDims.indexOf("colour");
-  const gamesByKey = new Map();
-  for (const row of rowsMatching(DATA.ecoGamesFacts, uSel)) {
-    const key = row[gEco] + "_" + row[gCol];
-    gamesByKey.set(key, (gamesByKey.get(key) || 0) + row[gDims.length]);
-  }
-  const eDims = DATA.ecoErrorFacts.dims;
-  const eEco = eDims.indexOf("eco"), eCol = eDims.indexOf("colour");
-  const errByKey = new Map();
-  for (const row of rowsMatching(DATA.ecoErrorFacts, uSel)) {
-    const key = row[eEco] + "_" + row[eCol];
-    errByKey.set(key, (errByKey.get(key) || 0) + row[eDims.length]);
-  }
+  const keyOf = (row, dims) => row[dims.indexOf("eco")] + "_" + row[dims.indexOf("colour")];
+  const tally = (table, s) => {
+    const m = new Map();
+    for (const row of rowsMatching(table, s)) {
+      const k = keyOf(row, table.dims);
+      m.set(k, (m.get(k) || 0) + row[table.dims.length]);
+    }
+    return m;
+  };
+  const gamesBy = tally(DATA.ecoGamesFacts, uSel);
+  const movesBy = tally(DATA.ecoMovesFacts, uSel);
+  const errorsBy = tally(DATA.ecoErrorFacts, uSel);
   const rows = [];
-  for (const [key, games] of gamesByKey) {
-    if (games < DATA.meta.ecoMinGames) continue;
+  for (const [key, g] of gamesBy) {
+    const mv = movesBy.get(key) || 0;
+    if (g < DATA.meta.ecoMinGames || !mv) continue;
     const [ecoIdx, colIdx] = key.split("_").map(Number);
-    rows.push({
-      eco: DATA.lists.ecos[ecoIdx], colour: DATA.lists.colours[colIdx],
-      games, errors: errByKey.get(key) || 0,
-    });
+    rows.push({ eco: DATA.lists.ecos[ecoIdx], colour: DATA.lists.colours[colIdx], games: g,
+      rate: (errorsBy.get(key) || 0) / mv * 100 });
   }
-  rows.sort((a, b) => (b.errors / b.games) - (a.errors / a.games));
+  rows.sort((a, b) => b.rate - a.rate);
   return rows.slice(0, DATA.meta.ecoTopN);
 }
 
 function renderOpenings(sel, users) {
   const el = document.getElementById("openings");
-  el.innerHTML = "";
-  let any = false;
+  let html = "";
   users.forEach(user => {
     const rows = openingsFor(sel, user);
     if (!rows.length) return;
-    any = true;
-    const h3 = document.createElement("h3");
-    h3.textContent = userLabel(user);
-    el.appendChild(h3);
-    rows.forEach(r => {
-      const row = document.createElement("div");
-      row.className = "openrow";
-      const label = r.eco + " (" + r.colour + ")" + (ECO_NAMES[r.eco] ? " — " + ECO_NAMES[r.eco] : "");
-      row.innerHTML = '<span>' + label + '</span><span>' + r.games + ' games</span>' +
-        '<span>' + (r.errors / r.games).toFixed(1) + '/game</span>';
-      el.appendChild(row);
-    });
+    const avg = totalRate(sel, user);
+    if (users.length > 1) html += "<h3>" + esc(user) + "</h3>";
+    html += barRowsHtml(rows.map(r => {
+      const name = ECO_NAMES[r.eco] ? ECO_NAMES[r.eco] : r.eco;
+      const diff = avg == null ? null : r.rate - avg;
+      const vs = diff == null ? "" : ' &middot; <span class="' + (diff > 0.5 ? "worse" : diff < -0.5 ? "better" : "flat") + '">' +
+        (diff > 0 ? "+" : "") + diff.toFixed(1) + " vs your average</span>";
+      return { label: name + " as " + r.colour, labelHtml: esc(name) + " <small>as " + esc(r.colour) + " &middot; " + esc(r.eco) + "</small>",
+        value: r.rate, aside: r.games + " games" + vs, color: users.length > 1 ? colorFor(user) : null };
+    }));
   });
-  if (!any) el.innerHTML = '<div class="emptynote">No opening played at least ' +
-    DATA.meta.ecoMinGames + ' times under the current filters.</div>';
+  el.innerHTML = html
+    ? '<div class="note" style="margin:-4px 0 8px">Errors per 100 moves in openings you\'ve played at least ' +
+      DATA.meta.ecoMinGames + " times, worst first.</div>" + html
+    : '<div class="emptynote">No opening played at least ' + DATA.meta.ecoMinGames +
+      " times under the current filters.</div>";
 }
 
-function render() {
-  const sel = baseSel();
-  const users = DATA.lists.users.filter(u => state.users.has(u));
-  const cats = DATA.lists.categories.filter(c => state.categories.has(c));
-
-  document.getElementById("summary").textContent =
-    users.length + " player" + (users.length === 1 ? "" : "s") + " · " +
-    state.phases.size + " phase" + (state.phases.size === 1 ? "" : "s") + " · " +
-    state.timeClasses.size + " time class" + (state.timeClasses.size === 1 ? "" : "es") + " · " +
-    state.severities.size + " severit" + (state.severities.size === 1 ? "y" : "ies") + " · " +
-    cats.length + " mistake type" + (cats.length === 1 ? "" : "s") + " selected";
-
-  const totals = users.map(u => ({ u, r: totalRate(sel, u), m: movesFor(userSel(sel, u)) }));
-  const maxR = Math.max(1, ...totals.map(t => t.r || 0));
-  const barsEl = document.getElementById("bars");
-  barsEl.innerHTML = "";
-  totals.forEach(t => {
-    const row = document.createElement("div");
-    row.className = "barrow";
-    const width = t.r == null ? 0 : (t.r / maxR * 100);
-    row.innerHTML =
-      '<div class="barlabel" title="' + t.u + '">' + userLabel(t.u) + '</div>' +
-      '<div class="bartrack"><div class="barfill" style="width:' + width + '%"></div></div>' +
-      '<div class="barvalue">' + (t.r == null ? "–" : t.r.toFixed(2)) + '</div>';
-    barsEl.appendChild(row);
-  });
-
-  const bkts = trendBuckets();
-  renderTrend(sel, users, bkts);
-  renderLatestDeltas(sel, users, bkts);
-
-  const rateRows = cats.map(c => ({ c, vals: users.map(u => rateOf(sel, u, c)) }));
-  rateRows.sort((a, b) => {
-    const gapA = Math.max(...a.vals.map(v => v ?? 0)) - Math.min(...a.vals.map(v => v ?? 0));
-    const gapB = Math.max(...b.vals.map(v => v ?? 0)) - Math.min(...b.vals.map(v => v ?? 0));
-    return gapB - gapA;
-  });
-
-  // A "Practice" link per category only makes sense pointed at one player;
-  // with several selected, whose queue would it open? So it only appears
-  // with exactly one player selected.
-  const showPractice = users.length === 1;
-  const table = document.getElementById("table");
-  let thead = "<thead><tr><th>mistake type</th>" + users.map(u => "<th>" + userLabel(u) + "</th>").join("") +
-    (showPractice ? "<th></th>" : "") + "</tr></thead>";
-  let tbody = "<tbody>";
-  tbody += '<tr class="total-row"><td>ALL ERRORS</td>' +
-    totals.map(t => "<td>" + (t.r == null ? "–" : t.r.toFixed(2)) + "</td>").join("") +
-    (showPractice ? "<td></td>" : "") + "</tr>";
-  rateRows.forEach(r => {
-    const numeric = r.vals.filter(v => v != null);
-    const maxV = numeric.length ? Math.max(...numeric) : null;
-    let rowHtml = "<tr><td>" + r.c + "</td>" + r.vals.map(v => {
-      const cls = (v != null && maxV != null && v === maxV && users.length > 1) ? "maxcell" : "";
-      return '<td class="' + cls + '">' + (v == null ? "–" : v.toFixed(2)) + "</td>";
-    }).join("");
-    if (showPractice) {
-      const href = "/practice?users=" + encodeURIComponent(users[0]) +
-        "&category=" + encodeURIComponent(r.c);
-      rowHtml += '<td class="practicecell"><a href="' + href + '">Practice</a></td>';
-    }
-    tbody += rowHtml + "</tr>";
-  });
-  tbody += "</tbody>";
-  table.innerHTML = thead + tbody;
-
-  renderPhaseTable(sel, users);
-  renderClockTable(sel, users);
-  renderColourTc(sel, users);
-  renderOpenings(sel, users);
-
+// ---- biggest gaps (several players) ---------------------------------------------------------
+function renderGaps(sel, users, cats) {
   const gapsPanel = document.getElementById("gapsPanel");
-  if (users.length < 2) {
-    gapsPanel.style.display = "none";
+  if (users.length < 2) { gapsPanel.style.display = "none"; return; }
+  gapsPanel.style.display = "";
+  const refSel = document.getElementById("refSelect");
+  if (!users.includes(state.ref)) state.ref = users[0];
+  refSel.innerHTML = users.map(u =>
+    '<option value="' + esc(u) + '"' + (u === state.ref ? " selected" : "") + ">" + esc(u) + "</option>").join("");
+  const gapsEl = document.getElementById("gaps");
+  gapsEl.innerHTML = "";
+  const others = users.filter(u => u !== state.ref);
+  const gaps = cats.map(c => {
+    const refR = rateOf(sel, state.ref, c) ?? 0;
+    const otherVals = others.map(u => rateOf(sel, u, c)).filter(v => v != null);
+    const otherMin = otherVals.length ? Math.min(...otherVals) : 0;
+    return { c, gap: refR - otherMin };
+  }).filter(g => g.gap > 0).sort((a, b) => b.gap - a.gap).slice(0, 6);
+  if (gaps.length) {
+    const ul = document.createElement("ul");
+    gaps.forEach(g => {
+      const li = document.createElement("li");
+      li.textContent = "+" + g.gap.toFixed(2) + " per 100 moves — " + g.c;
+      ul.appendChild(li);
+    });
+    gapsEl.appendChild(ul);
   } else {
-    gapsPanel.style.display = "";
-    const refSel = document.getElementById("refSelect");
-    if (!users.includes(state.ref)) state.ref = users[0];
-    refSel.innerHTML = users.map(u =>
-      '<option value="' + u + '"' + (u === state.ref ? " selected" : "") + ">" + u + "</option>").join("");
-
-    const gapsEl = document.getElementById("gaps");
-    gapsEl.innerHTML = "";
-    const others = users.filter(u => u !== state.ref);
-    const gaps = cats.map(c => {
-      const refR = rateOf(sel, state.ref, c) ?? 0;
-      const otherVals = others.map(u => rateOf(sel, u, c)).filter(v => v != null);
-      const otherMin = otherVals.length ? Math.min(...otherVals) : 0;
-      return { c, gap: refR - otherMin };
-    }).filter(g => g.gap > 0).sort((a, b) => b.gap - a.gap).slice(0, 6);
-    if (gaps.length) {
-      const ul = document.createElement("ul");
-      gaps.forEach(g => {
-        const li = document.createElement("li");
-        li.textContent = "+" + g.gap.toFixed(2) + " per 100 moves — " + g.c;
-        ul.appendChild(li);
-      });
-      gapsEl.appendChild(ul);
-    } else {
-      gapsEl.textContent = "No positive gaps for " + state.ref + " under the current filters.";
-    }
+    gapsEl.textContent = "No positive gaps for " + state.ref + " under the current filters.";
   }
 }
 
-buildGroup("chk-users", DATA.lists.users, state.users, userLabel);
-buildGroup("chk-phases", DATA.lists.phases, state.phases);
-buildGroup("chk-tc", DATA.lists.timeClasses, state.timeClasses);
-buildGroup("chk-severities", DATA.lists.severities, state.severities);
-buildGroup("chk-cats", DATA.lists.categories, state.categories);
-wireGroupLinks("grp-users", "chk-users", DATA.lists.users, state.users);
-wireGroupLinks("grp-phases", "chk-phases", DATA.lists.phases, state.phases);
-wireGroupLinks("grp-tc", "chk-tc", DATA.lists.timeClasses, state.timeClasses);
-wireGroupLinks("grp-severities", "chk-severities", DATA.lists.severities, state.severities);
-wireGroupLinks("grp-cats", "chk-cats", DATA.lists.categories, state.categories);
+function render() {
+  updateChips();
+  const sel = baseSel();
+  const users = DATA.lists.users.filter(u => state.users.has(u));
+  const cats = DATA.lists.categories.filter(c => state.categories.has(c));
+  const totals = users.map(u => ({ u, r: totalRate(sel, u) }));
+
+  renderGlance(sel, users, cats);
+  renderTypes(sel, users, cats, totals);
+  const bkts = trendBuckets();
+  renderTrend(sel, users, bkts);
+  renderLatestDeltas(sel, users, bkts);
+  renderPhase(sel, users);
+  renderClock(sel, users);
+  renderColourTc(sel, users);
+  renderOpenings(sel, users);
+  renderGaps(sel, users, cats);
+}
+
+GROUPS.forEach(g => { buildGroup(g); wireGroup(g); });
 document.getElementById("refSelect").addEventListener("change", e => { state.ref = e.target.value; render(); });
 document.getElementById("granularity").addEventListener("click", e => {
   const btn = e.target.closest("button[data-g]");
@@ -925,7 +1156,7 @@ render();
 // ---- Update control, demo banner, sticky progress bar -- all guarded to
 // the live web app; a --export-html file opened via file:// has no server
 // to post to or poll, same guard as the "Home" link above. ----
-if (location.protocol.indexOf("http") === 0) {
+if (SERVED) {
   if (DATA.meta.demo) {
     document.getElementById("demoBanner").style.display = "flex";
     const statusEl = document.getElementById("demoBannerStatus");

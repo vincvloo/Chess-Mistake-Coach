@@ -160,6 +160,21 @@ CREATE TABLE IF NOT EXISTS puzzle_source_stats (
     updated_at   TEXT
 );
 
+-- How many of your clocked moves fell in each clock band (analysis.py's
+-- CLOCK_BUCKET_LABELS: under 30s, 30-60s, over 60s left), one row per game,
+-- user and phase. The denominator for the dashboard's time-pressure rates,
+-- which before this could only divide by *all* moves. A game with no clock
+-- data still gets zero rows-of-counts, which marks it as counted.
+CREATE TABLE IF NOT EXISTS game_clock_moves (
+    game_url  TEXT NOT NULL,
+    username  TEXT NOT NULL,
+    phase     TEXT NOT NULL,
+    under_30  INTEGER NOT NULL DEFAULT 0,
+    s30_to_60 INTEGER NOT NULL DEFAULT 0,
+    over_60   INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (game_url, username, phase)
+) WITHOUT ROWID;
+
 -- Engine verdicts on opening positions (chess_mistake_coach/position_cache.py), so
 -- the same position isn't analysed again for every game that reaches it. Only
 -- a speed-up: safe to delete, and left out of the default backup.
@@ -310,10 +325,21 @@ def already_analysed(conn: sqlite3.Connection, url: str, username: str,
     return row is not None and row["depth"] >= depth
 
 
+def save_clock_moves(conn: sqlite3.Connection, url: str, username: str,
+                     counts: dict[str, list[int]]) -> None:
+    """Store one game's moves-per-clock-band counts (no commit of its own)."""
+    conn.executemany(
+        "INSERT OR REPLACE INTO game_clock_moves "
+        "(game_url, username, phase, under_30, s30_to_60, over_60) VALUES (?, ?, ?, ?, ?, ?)",
+        [(url, username.lower(), phase, *vals) for phase, vals in counts.items()])
+
+
 def save_game(conn: sqlite3.Connection, rec: GameRecord, mistakes: list[MistakeRecord],
               depth: int) -> None:
     """Write one analysed game. Replaces any earlier, shallower analysis."""
     with conn:
+        if rec.get("clock_moves") is not None:
+            save_clock_moves(conn, rec["url"], rec["username"], rec["clock_moves"])
         conn.execute("DELETE FROM mistakes WHERE game_url = ? AND username = ?",
                      (rec["url"], rec["username"]))
         conn.execute("""

@@ -120,6 +120,7 @@ a.button-link { display: inline-block; margin-top: 4px; font-size: 12.5px; color
   {% set path = request.url.path %}
   <nav class="mainnav" aria-label="Main">
     <a href="/"{% if path == '/' %} aria-current="page"{% endif %}>Home</a>
+    <a href="/dashboard"{% if path.startswith('/dashboard') %} aria-current="page"{% endif %}>Dashboard</a>
     <a href="/practice"{% if path.startswith('/practice') %} aria-current="page"{% endif %}>Practice</a>
     <a href="/puzzles"{% if path.startswith('/puzzles') %} aria-current="page"{% endif %}>Puzzles</a>
     <a href="/play"{% if path.startswith('/play') %} aria-current="page"{% endif %}>Play</a>

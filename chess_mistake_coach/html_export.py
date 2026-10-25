@@ -8,12 +8,12 @@ import sqlite3
 from datetime import datetime, timezone
 
 from .analysis import PHASES
+from .coaching import CATEGORY_PUZZLE_THEMES
 from .db import get_settings
 from .reports import (
     CLOCK_BUCKET_LABELS,
     CLOCK_BUCKET_SQL_CASE,
     DELTA_EPSILON,
-    ECO_MIN_GAMES,
     ECO_TOP_N,
     SERIOUS,
     TIME_PRESSURE_ALERT,
@@ -29,6 +29,9 @@ SEVERITIES = ("inaccuracy", "mistake", "blunder")
 COLOURS = ("white", "black")
 
 THIN_GAMES_THRESHOLD = 100
+# The dashboard ranks openings by errors per 100 moves; below this many games
+# a ranking is mostly noise (the terminal report keeps its own lower bar).
+DASHBOARD_ECO_MIN_GAMES = 10
 
 
 def _index_map(values) -> dict:
@@ -105,10 +108,14 @@ def build_dashboard_data(conn: sqlite3.Connection, users: list[str]) -> dict:
             "colourCountFacts": _fact_table(
                 ["user", "tc", "colour", "phase", "severity", "category"], ["n"], []),
             "ecoGamesFacts": _fact_table(["user", "tc", "eco", "colour"], ["games"], []),
+            "ecoMovesFacts": _fact_table(["user", "tc", "eco", "colour", "phase"], ["moves"], []),
             "ecoErrorFacts": _fact_table(
                 ["user", "tc", "phase", "severity", "category", "eco", "colour"], ["n"], []),
+            "clockMovesFacts": _fact_table(
+                ["user", "tc", "phase", "month", "clockBucket"], ["moves"], []),
             "meta": {
-                "ecoMinGames": ECO_MIN_GAMES, "ecoTopN": ECO_TOP_N,
+                "ecoMinGames": DASHBOARD_ECO_MIN_GAMES, "ecoTopN": ECO_TOP_N,
+                "trainingThemes": CATEGORY_PUZZLE_THEMES, "clockCoverage": {},
                 "timePressureAlert": TIME_PRESSURE_ALERT,
                 "deltaEpsilon": DELTA_EPSILON, "thinGamesThreshold": THIN_GAMES_THRESHOLD,
                 "defaultSeverities": list(SERIOUS),
@@ -164,12 +171,41 @@ def build_dashboard_data(conn: sqlite3.Connection, users: list[str]) -> dict:
         FROM mistakes
         WHERE username IN ({placeholders}) AND time_class IS NOT NULL
               AND phase IS NOT NULL AND date IS NOT NULL AND clock_seconds IS NOT NULL
+              AND EXISTS (SELECT 1 FROM game_clock_moves c
+                          WHERE c.game_url = mistakes.game_url AND c.username = mistakes.username)
         GROUP BY username, time_class, phase, severity, category, month, bucket
     """, users).fetchall()
     clock_bucket_data = [[u_ix[r["username"]], tc_ix[r["time_class"]], ph_ix[r["phase"]],
                          sev_ix[r["severity"]], cat_ix[r["category"]], mo_ix[r["month"]],
                          clock_bucket_ix[r["bucket"]], r["n"]]
                         for r in clock_bucket_rows]
+
+    # ---- clockMovesFacts: the time-pressure denominator ---------------------
+    # How many of your clocked moves fell in each clock band. Only games
+    # whose bands have been counted (game_clock_moves) take part, on both
+    # sides of the rate -- see the EXISTS above.
+    clock_moves_rows = conn.execute(f"""
+        SELECT g.username, g.time_class, c.phase, substr(g.date,1,7) AS month,
+               SUM(c.under_30) AS b0, SUM(c.s30_to_60) AS b1, SUM(c.over_60) AS b2
+        FROM game_clock_moves c
+        JOIN games g ON g.url = c.game_url AND g.username = c.username
+        WHERE g.username IN ({placeholders}) AND g.time_class IS NOT NULL AND g.date IS NOT NULL
+        GROUP BY g.username, g.time_class, c.phase, month
+    """, users).fetchall()
+    clock_moves_data = []
+    for r in clock_moves_rows:
+        for bi, moves in enumerate((r["b0"], r["b1"], r["b2"])):
+            if moves:
+                clock_moves_data.append([u_ix[r["username"]], tc_ix[r["time_class"]],
+                                         ph_ix[r["phase"]], mo_ix[r["month"]], bi, moves])
+    coverage_rows = conn.execute(f"""
+        SELECT g.username, COUNT(*) AS total,
+               SUM(EXISTS (SELECT 1 FROM game_clock_moves c
+                           WHERE c.game_url = g.url AND c.username = g.username)) AS counted
+        FROM games g WHERE g.username IN ({placeholders}) GROUP BY g.username
+    """, users).fetchall()
+    clock_coverage = {r["username"]: {"counted": r["counted"], "total": r["total"]}
+                      for r in coverage_rows}
 
     # ---- colourMovesFacts / colourCountFacts -------------------------------
     # colour is a breakdown dimension of one panel, not a filter, so it does
@@ -224,6 +260,27 @@ def build_dashboard_data(conn: sqlite3.Connection, users: list[str]) -> dict:
     eco_games_data = [[u_ix[r["username"]], tc_ix[r["time_class"]], eco_ix[r["eco"]],
                       col_ix[r["colour"]], r["games"]]
                      for r in eco_games_rows]
+
+    # Moves per opening and phase, so the dashboard can rank openings by
+    # errors per 100 moves (like every other panel) instead of per game,
+    # which long games inflate, with the phase filter applied on both sides.
+    eco_moves_rows = conn.execute(f"""
+        SELECT username, time_class, eco, my_colour AS colour,
+               COALESCE(SUM(opening_moves),0) AS opening,
+               COALESCE(SUM(middlegame_moves),0) AS middlegame,
+               COALESCE(SUM(endgame_moves),0) AS endgame
+        FROM games
+        WHERE username IN ({placeholders}) AND time_class IS NOT NULL
+              AND eco IS NOT NULL AND eco != '?' AND my_colour IS NOT NULL
+        GROUP BY username, time_class, eco, my_colour
+    """, users).fetchall()
+    eco_moves_data = []
+    for r in eco_moves_rows:
+        for phase_name in PHASES:
+            if r[phase_name]:
+                eco_moves_data.append([u_ix[r["username"]], tc_ix[r["time_class"]],
+                                       eco_ix[r["eco"]], col_ix[r["colour"]],
+                                       ph_ix[phase_name], r[phase_name]])
 
     # ECO respects the category filter, unlike the terminal report's ECO
     # section, but its denominator (eco_games_data above) is still games in
@@ -306,11 +363,16 @@ def build_dashboard_data(conn: sqlite3.Connection, users: list[str]) -> dict:
             ["user", "tc", "colour", "phase", "severity", "category"], ["n"],
             colour_count_data),
         "ecoGamesFacts": _fact_table(["user", "tc", "eco", "colour"], ["games"], eco_games_data),
+        "ecoMovesFacts": _fact_table(["user", "tc", "eco", "colour", "phase"], ["moves"],
+                                     eco_moves_data),
         "ecoErrorFacts": _fact_table(
             ["user", "tc", "phase", "severity", "category", "eco", "colour"], ["n"],
             eco_error_data),
+        "clockMovesFacts": _fact_table(
+            ["user", "tc", "phase", "month", "clockBucket"], ["moves"], clock_moves_data),
         "meta": {
-            "ecoMinGames": ECO_MIN_GAMES, "ecoTopN": ECO_TOP_N,
+            "ecoMinGames": DASHBOARD_ECO_MIN_GAMES, "ecoTopN": ECO_TOP_N,
+            "trainingThemes": CATEGORY_PUZZLE_THEMES, "clockCoverage": clock_coverage,
             "timePressureAlert": TIME_PRESSURE_ALERT,
             "deltaEpsilon": DELTA_EPSILON, "thinGamesThreshold": THIN_GAMES_THRESHOLD,
             "defaultSeverities": list(SERIOUS),

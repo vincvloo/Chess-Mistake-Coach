@@ -6,7 +6,7 @@ import sqlite3
 import time
 from collections import Counter, defaultdict
 
-from .analysis import PHASES
+from .analysis import CLOCK_BUCKET_EDGES, CLOCK_BUCKET_LABELS, PHASES
 
 # Error categories counted as "serious" everywhere in the report and (from
 # phase 2 on) the dashboard's default severity filter, so the two agree by
@@ -20,9 +20,8 @@ SERIOUS = ("mistake", "blunder")
 MOVE_BUCKET_EDGES = (10, 20, 30, 40)
 MOVE_BUCKET_LABELS = ("1-10", "11-20", "21-30", "31-40", "41+")
 
-# Upper bound (exclusive) of each clock-seconds bucket except the last.
-CLOCK_BUCKET_EDGES = (30, 60)
-CLOCK_BUCKET_LABELS = ("under 30s left", "30 to 60s left", "over 60s left")
+# Clock-seconds buckets (CLOCK_BUCKET_EDGES / CLOCK_BUCKET_LABELS) are
+# defined in analysis.py, which also needs them, and imported above.
 
 ECO_MIN_GAMES = 3
 ECO_TOP_N = 8

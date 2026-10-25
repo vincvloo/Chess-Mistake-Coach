@@ -80,6 +80,16 @@ _MISTAKES = [
 ]
 
 
+def _demo_clock_moves(om: int, mm: int, em: int) -> dict[str, list[int]]:
+    """Plausible clock bands for a sample game: plenty of time in the
+    opening, the clock running down as the game goes on."""
+    def split(moves, under, mid):
+        u, m = round(moves * under), round(moves * mid)
+        return [u, m, moves - u - m]
+    return {"opening": split(om, 0.0, 0.0), "middlegame": split(mm, 0.05, 0.15),
+            "endgame": split(em, 0.25, 0.25)}
+
+
 def _seed_demo_db():
     conn = open_db(":memory:")
     for i, (date, tc, colour, rating, eco, result, moves, om, mm, em) in enumerate(_GAMES):
@@ -91,6 +101,7 @@ def _seed_demo_db():
             "opp_rating": rating - 20, "result": result, "eco": eco,
             "moves_played": moves, "opening_moves": om, "middlegame_moves": mm,
             "endgame_moves": em,
+            "clock_moves": _demo_clock_moves(om, mm, em),
         }
         mistakes = [{
             "game_url": url, "username": DEMO_USERNAME, "date": date, "end_time": end_time,
@@ -112,6 +123,9 @@ def demo_dashboard_data() -> dict:
     finally:
         conn.close()
     data["meta"]["demo"] = True
+    # 21 sample games: the real 10-game bar would leave the openings panel
+    # empty, so the demo ranks openings with at least 3 games.
+    data["meta"]["ecoMinGames"] = 3
     return data
 
 
